@@ -3,7 +3,7 @@ package us.rdodd.digital.i8088;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Intel8088CycleAccurate implements Runnable {
+public class Intel8088Core implements Runnable {
    // --------------------------------------------------------------------------------------------------
    // --------------------------------------------------------------------------------------------------
 
@@ -94,7 +94,7 @@ public class Intel8088CycleAccurate implements Runnable {
    private Logger _logger;
    private Logger _instLogger;
 
-   public Intel8088CycleAccurate(IClock clock,
+   public Intel8088Core(IClock clock,
          Registers registers,
          IBusInterfaceUnit biu,
          IBitLatch nmiLatched,

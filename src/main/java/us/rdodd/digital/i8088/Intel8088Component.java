@@ -74,7 +74,7 @@ public class Intel8088Component extends Node implements Element {
    private long clkLastValue = 0;
 
    private static Thread componentThread;
-   private static Intel8088CycleAccurate intel8088;
+   private static Intel8088Core intel8088;
    private AutoResetEvent clockChangedEvent;
 
    /**
@@ -137,7 +137,7 @@ public class Intel8088Component extends Node implements Element {
       ISimpleSignal simpleSignal = new SimpleSignal(false);
       IBusInterfaceUnit biu = new BusInterfaceUnit(clock, registers, deviceAdapter, simpleSignal);
 
-      intel8088 = new Intel8088CycleAccurate(clock, registers, biu, nmiLatch, deviceAdapter);
+      intel8088 = new Intel8088Core(clock, registers, biu, nmiLatch, deviceAdapter);
 
       componentThread = new Thread(intel8088, "i8088");
       componentThread.start();
