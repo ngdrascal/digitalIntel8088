@@ -1,20 +1,18 @@
 package us.rdodd.digital.i8088;
 
 public class Clock implements IClock {
-   private IHostDeviceAdapter _deviceAdapter;
-   private IBitLatch _nmiLatched;
+   private PinsInternalIntf pins;
+   private IBitLatch nmiLatch;
    private long clockCounter;
-   private int _nmiD;
-   private int _directNmi;
-   private final AutoResetEvent _resetEvent;
+   private byte lastNmi;
+   private byte currentNmi;
 
-   public Clock(IHostDeviceAdapter deviceAdapter, IBitLatch nmiLatched, AutoResetEvent resetEvent) {
-      _deviceAdapter = deviceAdapter;
-      _nmiLatched = nmiLatched;
-      _resetEvent = resetEvent;
+   public Clock(PinsInternalIntf pins, IBitLatch nmiLatch) {
+      this.pins = pins;
+      this.nmiLatch = nmiLatch;
 
-      _nmiD = 1;
-      _directNmi = 0;
+      lastNmi = 1;
+      currentNmi = 0;
    }
 
    public long getClockCounter() {
@@ -31,50 +29,37 @@ public class Clock implements IClock {
 
    public void WaitForRisingEdge() {
       // First ensure clock is at a low level
-      try {
-         while (_deviceAdapter.getClkPin() == 1) {
-            _resetEvent.waitOne();
-         }
+      while (pins.getClkPin() == 1) {
+      }
 
-         // Then poll for the first instance where clock is not low
-         while (_deviceAdapter.getClkPin() == 0) {
-            _resetEvent.waitOne();
-         }
-      } catch (InterruptedException e) {
-         e.printStackTrace();
+      // Then poll for the first instance where clock is not low
+      while (pins.getClkPin() == 0) {
       }
    }
 
    public void WaitForFallingEdge() {
-      if (clockCounter > 0) {
+      if (clockCounter > 0)
          // Count down clock_Counter here to keep new opcodes from beginning
          // yet still allowing the prefetch queue to fill
          clockCounter--;
-      }
 
-      if (_nmiD == 0 && _directNmi != 0) {
+      if (lastNmi == 0 && currentNmi != 0)
          // Latch rising edge of NMI
-         _nmiLatched.Set();
+         nmiLatch.Set();
+
+      lastNmi = currentNmi;
+
+      // First ensure clock is at a high level
+      while (pins.getClkPin() != 1) {
       }
-      _nmiD = (int) _directNmi;
 
-      try {
-         // First ensure clock is at a high level
-         while (_deviceAdapter.getClkPin() != 1) {
-            _resetEvent.waitOne();
-         }
-
-         // Then poll for the first instance where clock is not high
-         while (_deviceAdapter.getClkPin() != 0) {
-            _resetEvent.waitOne();
-         }
-      } catch (InterruptedException e) {
-         e.printStackTrace();
+      // Then poll for the first instance where clock is not high
+      while (pins.getClkPin() != 0) {
       }
 
       // Store slightly-delayed version of GPIO6 in a global register
       // GPIO6_raw_data = _deviceAdapter.GPIO6_DR;
       // direct_nmi = (GPIO6_raw_data & 0x00010000);
-      _directNmi = _deviceAdapter.getNmiPin();
+      currentNmi = pins.getNmiPin();
    }
 }

@@ -3,7 +3,10 @@ package us.rdodd.digital.i8088;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Intel8088Core implements Runnable {
+public class Intel8088Core {
+   private final byte LOW = 0;
+   private final byte HIGH = 1;
+
    // --------------------------------------------------------------------------------------------------
    // --------------------------------------------------------------------------------------------------
 
@@ -90,7 +93,7 @@ public class Intel8088Core implements Runnable {
    private Registers _registers;
    private IBusInterfaceUnit _biu;
    private IBitLatch _nmiLatched;
-   private IHostDeviceAdapter _deviceAdapter;
+   private PinsInternalIntf pins;
    private Logger _logger;
    private Logger _instLogger;
 
@@ -98,16 +101,17 @@ public class Intel8088Core implements Runnable {
          Registers registers,
          IBusInterfaceUnit biu,
          IBitLatch nmiLatched,
-         IHostDeviceAdapter deviceAdapter) {
+         PinsInternalIntf pins) {
       _clock = clock;
       _registers = registers;
       _biu = biu;
       _nmiLatched = nmiLatched;
-      _deviceAdapter = deviceAdapter;
+      this.pins = pins;
+
       _logger = LoggerFactory.getLogger("cpu");
       _instLogger = LoggerFactory.getLogger("cpu.instruction");
 
-      _deviceAdapter.setBusStatusPins(BusStatus.Pass);
+      pins.setBusStatusPins(BusStatus.Pass);
    }
 
    // #define flag_o ( (_registers.Flags & 0x0800)==0 ? 0 : 1 )
@@ -512,7 +516,7 @@ public class Intel8088Core implements Runnable {
 
       // var localByte = (byte)Biu_Operation(BiuOperations.CodeReadByte,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_CS, _pfqInAddress, 0x00);
-      byte localByte = _biu.ReadCode(_pfqInAddress);
+      byte localByte = _biu.readCode(_pfqInAddress);
 
       _pfqInAddress++;
 
@@ -569,49 +573,49 @@ public class Intel8088Core implements Runnable {
    // --------------------------------------------------------------------------------------------------
    // --------------------------------------------------------------------------------------------------
 
-   private void ResetSequence() {
-      _logger.trace("--> Reset sequence");
+   // private void ResetSequence() {
+   //    _logger.trace("--> Reset sequence");
 
-      // Stay here until RESET is de-asserted
-      while (_deviceAdapter.getResetPin() != 0) {
-         _clock.WaitForRisingEdge();
-         _clock.WaitForFallingEdge();
-      }
+   //    // Stay here until RESET is de-asserted
+   //    while (pins.getResetPin() != 0) {
+   //       _clock.WaitForRisingEdge();
+   //       _clock.WaitForFallingEdge();
+   //    }
 
-      _clock.WaitForFallingEdge(); // Wait 7 clocks total before beginning to fetch instructions
-      _clock.WaitForFallingEdge();
-      _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge(); // Wait 7 clocks total before beginning to fetch instructions
+   //    _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge();
 
-      _deviceAdapter.setBusStatusPins(BusStatus.Pass);
+   //    pins.setBusStatusPins(BusStatus.Pass);
 
-      _clock.WaitForFallingEdge();
-      _clock.WaitForFallingEdge();
-      _clock.WaitForFallingEdge();
-      _clock.WaitForFallingEdge();
-      _clock.WaitForFallingEdge();
-      _clock.WaitForFallingEdge();
-      _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge();
 
-      _nmiLatched.Clear(); // Debounce NMI
+   //    _nmiLatched.Clear(); // Debounce NMI
 
-      _clock.setClockCounter(10); // Debounce prefixes and cycle counter
-      _lastInstrSetPrefix = false;
-      _pauseInterrupts = false;
+   //    _clock.setClockCounter(10); // Debounce prefixes and cycle counter
+   //    _lastInstrSetPrefix = false;
+   //    _pauseInterrupts = false;
 
-      _registers.Flags = 0x0000; // Reset registers
-      _registers.ES = 0;
-      _registers.SS = 0;
-      _registers.DS = 0;
-      _registers.CS = 0xFFFF;
-      _registers.IP = 0;
+   //    _registers.Flags = 0x0000; // Reset registers
+   //    _registers.ES = 0;
+   //    _registers.SS = 0;
+   //    _registers.DS = 0;
+   //    _registers.CS = 0xFFFF;
+   //    _registers.IP = 0;
 
-      _pfqInAddress = 0;
-      prefetch_queue_count = 0;
+   //    _pfqInAddress = 0;
+   //    prefetch_queue_count = 0;
 
-      _clock.WaitForFallingEdge();
+   //    _clock.WaitForFallingEdge();
 
-      _logger.trace("<-- Reset sequence");
-   }
+   //    _logger.trace("<-- Reset sequence");
+   // }
 
    // ------------------------------------------------------
    // Displacement and sign helpers
@@ -955,11 +959,11 @@ public class Intel8088Core implements Runnable {
       } else if (_wordOperation == 0) {
          // local_data = Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_TRUE, _eaSegment, _eaAddress, 0x00);
-         local_data = _biu.ReadMemoryByte(SegmentOverridableTrue, _eaSegment, _eaAddress);
+         local_data = _biu.readMemoryByte(SegmentOverridableTrue, _eaSegment, _eaAddress);
       } else if (_wordOperation == 1) {
          // local_data = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_TRUE, _eaSegment, _eaAddress, 0x00);
-         local_data = _biu.ReadMemoryWord(SegmentOverridableTrue, _eaSegment, _eaAddress);
+         local_data = _biu.readMemoryWord(SegmentOverridableTrue, _eaSegment, _eaAddress);
       }
 
       return local_data;
@@ -974,11 +978,11 @@ public class Intel8088Core implements Runnable {
       } else if (_wordOperation == 0) {
          // Biu_Operation(BiuOperations.MemWriteByte, SEGMENT_OVERRIDABLE_TRUE,
          // _eaSegment, _eaAddress, local_data);
-         _biu.WriteMemoryByte(SegmentOverridableTrue, _eaSegment, _eaAddress, (byte) local_data);
+         _biu.writeMemoryByte(SegmentOverridableTrue, _eaSegment, _eaAddress, (byte) local_data);
       } else if (_wordOperation == 1) {
          // Biu_Operation(BiuOperations.MemWriteWord, SEGMENT_OVERRIDABLE_TRUE,
          // _eaSegment, _eaAddress, local_data);
-         _biu.WriteMemoryWord(SegmentOverridableTrue, _eaSegment, _eaAddress, local_data);
+         _biu.writeMemoryWord(SegmentOverridableTrue, _eaSegment, _eaAddress, local_data);
       }
    }
 
@@ -1006,7 +1010,7 @@ public class Intel8088Core implements Runnable {
       // Fetch the CS (offset +2 from Interrupt vector base)
       // var new_cs = Biu_Operation(BiuOperations.MemReadWord,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_00, (int)(local_address + 2), 0x00);
-      int new_cs = _biu.ReadMemoryWord(SegmentOverridableFalse, SegmentRegs.None, (int) (local_address + 2));
+      int new_cs = _biu.readMemoryWord(SegmentOverridableFalse, SegmentRegs.None, (int) (local_address + 2));
 
       // Push the IP
       Push(_registers.IP);
@@ -1014,7 +1018,7 @@ public class Intel8088Core implements Runnable {
       // Fetch the IP at the Interrupt vector base
       // _registers.IP = Biu_Operation(BiuOperations.MemReadWord,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_00, local_address, 0x00);
-      _registers.IP = _biu.ReadMemoryWord(SegmentOverridableFalse, SegmentRegs.None, local_address);
+      _registers.IP = _biu.readMemoryWord(SegmentOverridableFalse, SegmentRegs.None, local_address);
 
       _registers.CS = new_cs;
 
@@ -1023,7 +1027,7 @@ public class Intel8088Core implements Runnable {
 
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
-      _biu.setPrefixFlags((byte)0);
+      _biu.setPrefixFlags((byte) 0);
    }
 
    // ------------------------------------------------------
@@ -1053,7 +1057,7 @@ public class Intel8088Core implements Runnable {
       // External Interrupt Processing - INTR type fetched from i8259
       // var local_intr_type = (byte)Biu_Operation(BiuOperations.InterruptAck,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_00, 0x00000, 0x00);
-      byte local_intr_type = _biu.InterruptAck();
+      byte local_intr_type = _biu.interruptAck();
       Interrupt_Handler(local_intr_type);
    }
 
@@ -1283,7 +1287,7 @@ public class Intel8088Core implements Runnable {
 
       // Biu_Operation(BiuOperations.MemWriteWord, SEGMENT_OVERRIDABLE_FALSE,
       // SEGMENT_SS, _registers.SP, localData);
-      _biu.WriteMemoryWord(SegmentOverridableFalse, SegmentRegs.SS, _registers.SP, localData);
+      _biu.writeMemoryWord(SegmentOverridableFalse, SegmentRegs.SS, _registers.SP, localData);
    }
 
    // -------------------------------------------------------------------------
@@ -1397,7 +1401,7 @@ public class Intel8088Core implements Runnable {
    private int Pop() {
       // var localData = Biu_Operation(BiuOperations.MemReadWord,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_SS, _registers.SP, 0x00);
-      int localData = _biu.ReadMemoryWord(SegmentOverridableFalse, SegmentRegs.SS, _registers.SP);
+      int localData = _biu.readMemoryWord(SegmentOverridableFalse, SegmentRegs.SS, _registers.SP);
       int addr = (_registers.SS << 4) + _registers.SP;
       _instLogger.trace("     popping from {0:X5}:{1:X4}", addr, localData);
       _registers.SP += 2;
@@ -1540,7 +1544,7 @@ public class Intel8088Core implements Runnable {
       // Fetch the IO byte data at address DX
       // var localData = Biu_Operation(BiuOperations.IoReadByte,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_00, _registers.DX, 0x00);
-      byte localData = _biu.ReadIoByte(_registers.DX);
+      byte localData = _biu.readIoByte(_registers.DX);
       _registers.AX = (int) ((_registers.AX & 0xFF00) | localData);
    }
 
@@ -1554,7 +1558,7 @@ public class Intel8088Core implements Runnable {
       // var localData = Biu_Operation(BiuOperations.IoReadByte,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_00, (int)(0xFF & PfqFetchByte()), 0x00);
       int portAddr = (int) (0xFF & PfqFetchByte());
-      byte localData = _biu.ReadIoByte(portAddr);
+      byte localData = _biu.readIoByte(portAddr);
       _registers.AX = (int) ((_registers.AX & 0xFF00) | localData);
    }
 
@@ -1566,7 +1570,7 @@ public class Intel8088Core implements Runnable {
 
       // _registers.AX = Biu_Operation(BiuOperations.IoReadWord,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_00, _registers.DX, 0x00);
-      _registers.AX = _biu.ReadIoWord(_registers.DX);
+      _registers.AX = _biu.readIoWord(_registers.DX);
    }
 
    // -------------------------------------------------------------------------
@@ -1578,7 +1582,7 @@ public class Intel8088Core implements Runnable {
       // _registers.AX = Biu_Operation(BiuOperations.IoReadWord,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_00, (int)(0xFF & PfqFetchByte()), 0x00);
       int portAddr = (int) (0xFF & PfqFetchByte());
-      _registers.AX = _biu.ReadIoWord(portAddr);
+      _registers.AX = _biu.readIoWord(portAddr);
    }
 
    // -------------------------------------------------------------------------
@@ -1589,7 +1593,7 @@ public class Intel8088Core implements Runnable {
 
       // Biu_Operation(BiuOperations.IoWriteByte, SEGMENT_OVERRIDABLE_FALSE,
       // SEGMENT_00, _registers.DX, _registers.AX);
-      _biu.WriteIoByte(_registers.DX, (byte) (_registers.AX & 0x00FF));
+      _biu.writeIoByte(_registers.DX, (byte) (_registers.AX & 0x00FF));
    }
 
    // -------------------------------------------------------------------------
@@ -1601,7 +1605,7 @@ public class Intel8088Core implements Runnable {
       // Biu_Operation(BiuOperations.IoWriteWord, SEGMENT_OVERRIDABLE_FALSE,
       // SEGMENT_00, _registers.DX, _registers.AX);
       byte registerAl = (byte) (_registers.AX & 0x00FF);
-      _biu.WriteIoWord(_registers.DX, registerAl);
+      _biu.writeIoWord(_registers.DX, registerAl);
    }
 
    // -------------------------------------------------------------------------
@@ -1614,7 +1618,7 @@ public class Intel8088Core implements Runnable {
       // SEGMENT_00, (int)(0xFF & PfqFetchByte()), _registers.AX);
       int portAddr = (int) (0xFF & PfqFetchByte());
       byte registerAl = (byte) (_registers.AX & 0x00FF);
-      _biu.WriteIoByte(portAddr, registerAl);
+      _biu.writeIoByte(portAddr, registerAl);
    }
 
    // -------------------------------------------------------------------------
@@ -1625,7 +1629,7 @@ public class Intel8088Core implements Runnable {
 
       // Biu_Operation(BiuOperations.IoWriteWord, SEGMENT_OVERRIDABLE_FALSE,
       // SEGMENT_00, (int)(0xFF & PfqFetchByte()), _registers.AX);
-      _biu.WriteIoWord((int) (0xFF & PfqFetchByte()), _registers.AX);
+      _biu.writeIoWord((int) (0xFF & PfqFetchByte()), _registers.AX);
    }
 
    /////////////////////////////////////////////////////////////////////////////
@@ -1966,7 +1970,7 @@ public class Intel8088Core implements Runnable {
 
       _registers.Flags = (int) (0x0FD5 & Pop());
 
-      _biu.setPrefixFlags((byte)0);
+      _biu.setPrefixFlags((byte) 0);
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
 
@@ -2949,7 +2953,7 @@ public class Intel8088Core implements Runnable {
    // -------------------------------------------------------------------------
    private void OpCode_0xF0() {
       _clock.setClockCounter((byte) 2);
-      _biu.orEqPrefixFlags((byte)0x01);
+      _biu.orEqPrefixFlags((byte) 0x01);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
    }
@@ -2959,7 +2963,7 @@ public class Intel8088Core implements Runnable {
    // -------------------------------------------------------------------------
    private void OpCode_0xF2() {
       _clock.setClockCounter((byte) 2);
-      _biu.orEqPrefixFlags((byte)0x02);
+      _biu.orEqPrefixFlags((byte) 0x02);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
    }
@@ -2969,7 +2973,7 @@ public class Intel8088Core implements Runnable {
    // -------------------------------------------------------------------------
    private void OpCode_0xF3() {
       _clock.setClockCounter((byte) 2);
-      _biu.orEqPrefixFlags((byte)0x04);
+      _biu.orEqPrefixFlags((byte) 0x04);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
    }
@@ -2979,7 +2983,7 @@ public class Intel8088Core implements Runnable {
    // -------------------------------------------------------------------------
    private void OpCode_0x26() {
       _clock.setClockCounter((byte) 2);
-      _biu.orEqPrefixFlags((byte)0x10);
+      _biu.orEqPrefixFlags((byte) 0x10);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
    }
@@ -2989,7 +2993,7 @@ public class Intel8088Core implements Runnable {
    // -------------------------------------------------------------------------
    private void OpCode_0x2E() {
       _clock.setClockCounter((byte) 2);
-      _biu.orEqPrefixFlags((byte)0x20);
+      _biu.orEqPrefixFlags((byte) 0x20);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
    }
@@ -2999,7 +3003,7 @@ public class Intel8088Core implements Runnable {
    // -------------------------------------------------------------------------
    private void OpCode_0x36() {
       _clock.setClockCounter((byte) 2);
-      _biu.orEqPrefixFlags((byte)0x40);
+      _biu.orEqPrefixFlags((byte) 0x40);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
    }
@@ -3009,7 +3013,7 @@ public class Intel8088Core implements Runnable {
    // -------------------------------------------------------------------------
    private void OpCode_0x3E() {
       _clock.setClockCounter((byte) 2);
-      _biu.orEqPrefixFlags((byte)0x80);
+      _biu.orEqPrefixFlags((byte) 0x80);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
    }
@@ -3673,7 +3677,7 @@ public class Intel8088Core implements Runnable {
       // Read data from source
       // var localData = Biu_Operation(BiuOperations.MemReadByte,
       // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, localAddress, 0x00);
-      byte localData = _biu.ReadMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, localAddress);
+      byte localData = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, localAddress);
       WriteRegister(REG_AL, localData);
    }
 
@@ -3742,7 +3746,7 @@ public class Intel8088Core implements Runnable {
       // Tell BIU to send HALT onto S Bits
       // Biu_Operation(BiuOperations.SendHalt, SEGMENT_OVERRIDABLE_FALSE, 0x00, 0x00,
       // 0x00);
-      _biu.SendHalt();
+      _biu.sendHalt();
 
       boolean directIntr;
       do {
@@ -3752,10 +3756,10 @@ public class Intel8088Core implements Runnable {
          // if (_deviceAdapter.IntrPin != 0 && Flag_i() == 1) direct_intr = true;
          // else direct_intr = false;
 
-         directIntr = _deviceAdapter.getIntrPin() != 0 && Flag_i() == 1;
-      } while (!directIntr && !_nmiLatched.IsSet() && _deviceAdapter.getResetPin() == 0);
+         directIntr = pins.getIntrPin() != 0 && Flag_i() == 1;
+      } while (!directIntr && !_nmiLatched.IsSet() && pins.getResetPin() == 0);
 
-      _deviceAdapter.setBusStatusPins(BusStatus.Pass);
+      pins.setBusStatusPins(BusStatus.Pass);
       _clock.WaitForFallingEdge();
       _clock.WaitForFallingEdge();
    }
@@ -3783,8 +3787,8 @@ public class Intel8088Core implements Runnable {
          // if (_deviceAdapter.IntrPin != 0 && Flag_i() == 1) direct_intr = true;
          // else direct_intr = false;
 
-         directIntr = _deviceAdapter.getIntrPin() != 0 && Flag_i() == 1;
-      } while (!directIntr && !_nmiLatched.IsSet() && _deviceAdapter.getResetPin() == 0);
+         directIntr = pins.getIntrPin() != 0 && Flag_i() == 1;
+      } while (!directIntr && !_nmiLatched.IsSet() && pins.getResetPin() == 0);
    }
 
    // -------------------------------------------------------------------------
@@ -3910,7 +3914,7 @@ public class Intel8088Core implements Runnable {
       // WriteRegister(REG_AL,
       // Biu_Operation(BiuOperations.MemReadByte, SEGMENT_OVERRIDABLE_TRUE,
       // SEGMENT_DS, PfqFetchWord(), 0x00));
-      WriteRegister(REG_AL, _biu.ReadMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord()));
+      WriteRegister(REG_AL, _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord()));
    }
 
    // -------------------------------------------------------------------------
@@ -3920,7 +3924,7 @@ public class Intel8088Core implements Runnable {
       _clock.incClockCounter((byte) 14);
       // _registers.AX = Biu_Operation(BiuOperations.MemReadWord,
       // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, PfqFetchWord(), 0x00);
-      _registers.AX = _biu.ReadMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord());
+      _registers.AX = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord());
    }
 
    // -------------------------------------------------------------------------
@@ -3931,7 +3935,7 @@ public class Intel8088Core implements Runnable {
       // Biu_Operation(BiuOperations.MemWriteByte, SEGMENT_OVERRIDABLE_TRUE,
       // SEGMENT_DS, PfqFetchWord(), _registers.AX);
       byte registerAl = (byte) (_registers.AX & 0x00FF);
-      _biu.WriteMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord(), registerAl);
+      _biu.writeMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord(), registerAl);
    }
 
    // -------------------------------------------------------------------------
@@ -3941,7 +3945,7 @@ public class Intel8088Core implements Runnable {
       _clock.incClockCounter((byte) 14);
       // Biu_Operation(BiuOperations.MemWriteWord, SEGMENT_OVERRIDABLE_TRUE,
       // SEGMENT_DS, PfqFetchWord(), _registers.AX);
-      _biu.WriteMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord(), _registers.AX);
+      _biu.writeMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord(), _registers.AX);
    }
 
    // -------------------------------------------------------------------------
@@ -4383,7 +4387,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_lsb; // Set C flag
          local_data = (byte) (local_data >> 1);
          local_count--;
-         _clock.incClockCounter((byte)4); // Add four clocks per bit
+         _clock.incClockCounter((byte) 4); // Add four clocks per bit
       }
 
       if ((local_data & 0x80) != ((local_data & 0x40) << 1))
@@ -4486,7 +4490,7 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0xD1() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.setClockCounter(_clock.getClockCounter() -2 );
+         _clock.setClockCounter(_clock.getClockCounter() - 2);
       else
          _clock.incClockCounter((byte) 21);
 
@@ -4636,18 +4640,18 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)17); // Add clocks per loop iteration  
+         _clock.incClockCounter((byte) 17); // Add clocks per loop iteration  
 
          // var localData = Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
-         byte localData = _biu.ReadMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
+         byte localData = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
 
          // Write data to destination - Interrupts sampled on last CLK edge
          // Biu_Operation(BiuOperations.MemWriteByte, SEGMENT_OVERRIDABLE_FALSE,
          // SEGMENT_ES, _registers.DI, localData);
-         _biu.WriteMemoryByte(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, localData);
+         _biu.writeMemoryByte(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, localData);
 
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4676,7 +4680,7 @@ public class Intel8088Core implements Runnable {
       if (Prefix_repz() == 0 && Prefix_repnz() == 0)
          _clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte)9); // Add initial clock counter
+         _clock.incClockCounter((byte) 9); // Add initial clock counter
 
       do {
          if (Prefix_repz() == 1 || Prefix_repnz() == 1) {
@@ -4692,18 +4696,18 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)17); // Add clocks per loop iteration
+         _clock.incClockCounter((byte) 17); // Add clocks per loop iteration
 
          // var localData = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
-         int localData = _biu.ReadMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
+         int localData = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
 
          // Write data to destination - Interrupts sampled on last CLK edge
          // Biu_Operation(BiuOperations.MemWriteWord, SEGMENT_OVERRIDABLE_FALSE,
          // SEGMENT_ES, _registers.DI, localData);
-         _biu.WriteMemoryWord(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, localData);
+         _biu.writeMemoryWord(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, localData);
 
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && (Flag_i()) != 0))
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && (Flag_i()) != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4728,7 +4732,7 @@ public class Intel8088Core implements Runnable {
       if ((Prefix_repz() == 1) || (Prefix_repnz() == 1))
          _clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte)9); // Add initial inccl(count)s
+         _clock.incClockCounter((byte) 9); // Add initial inccl(count)s
 
       do {
          if (Prefix_repz() == 1 || Prefix_repnz() == 1) {
@@ -4743,17 +4747,17 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)22); // Add clocks per loop iteration
+         _clock.incClockCounter((byte) 22); // Add clocks per loop iteration
          // var localData1 = (byte)Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
-         byte localData1 = _biu.ReadMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
+         byte localData1 = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
 
          // var localData2 = (byte)Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_ES, _registers.DI, 0x00);
-         byte localData2 = _biu.ReadMemoryByte(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
+         byte localData2 = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
 
          SubBytes(localData1, localData2); // Perform comparison which sets Flags
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4778,7 +4782,7 @@ public class Intel8088Core implements Runnable {
       if (Prefix_repz() == 1 || Prefix_repnz() == 1)
          _clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte)9); // Add initial clock counts
+         _clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if ((Prefix_repz() == 1) || (Prefix_repnz() == 1)) {
@@ -4793,17 +4797,17 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)22); // Add clocks per loop iteration
+         _clock.incClockCounter((byte) 22); // Add clocks per loop iteration
          // ushort localData1 = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
-         int localData1 = _biu.ReadMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
+         int localData1 = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
 
          // ushort localData2 = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_ES, _registers.DI, 0x00);
-         int localData2 = _biu.ReadMemoryWord(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
+         int localData2 = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
 
          SubWords(localData1, localData2); // Perform comparison which sets Flags
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4828,7 +4832,7 @@ public class Intel8088Core implements Runnable {
       if (Prefix_repz() == 0)
          _clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte)9); // Add initial clock counts
+         _clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if (Prefix_repz() == 1) {
@@ -4843,13 +4847,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)10); // Add clocks per loop iteration
+         _clock.incClockCounter((byte) 10); // Add clocks per loop iteration
          // Biu_Operation(BiuOperations.MemWriteByte, SEGMENT_OVERRIDABLE_FALSE,
          // SEGMENT_ES, _registers.DI, _registers.AX); // Write AL data to the ES:DI
          // Address
          byte registerAl = (byte) (_registers.AX & 0x00FF);
-         _biu.WriteMemoryByte(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, registerAl);
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0))
+         _biu.writeMemoryByte(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, registerAl);
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4872,7 +4876,7 @@ public class Intel8088Core implements Runnable {
       if (Prefix_repz() == 0)
          _clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte)9); // Add initial clock counts
+         _clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if (Prefix_repz() == 1) {
@@ -4887,15 +4891,15 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)10); // Add clocks per loop iteration
+         _clock.incClockCounter((byte) 10); // Add clocks per loop iteration
          // Biu_Operation(BiuOperations.MemWriteWord, SEGMENT_OVERRIDABLE_FALSE,
          // SEGMENT_ES, _registers.DI, _registers.AX); // Write AL data to the ES:DI
          // Address
-         _biu.WriteMemoryWord(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, _registers.AX); // Write AL data
+         _biu.writeMemoryWord(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, _registers.AX); // Write AL data
                                                                                                       // to the ES:DI
                                                                                                       // Address
 
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4918,7 +4922,7 @@ public class Intel8088Core implements Runnable {
       if (Prefix_repz() == 0)
          _clock.incClockCounter((byte) 0);
       else
-         _clock.incClockCounter((byte)9); // Add initial clock counts
+         _clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if (Prefix_repz() == 1) {
@@ -4932,13 +4936,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)12); // Add clocks per loop iteration
+         _clock.incClockCounter((byte) 12); // Add clocks per loop iteration
          // var localData = Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
-         byte localData = _biu.ReadMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
+         byte localData = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
 
          WriteRegister(REG_AL, localData); // Write data to AL
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4961,7 +4965,7 @@ public class Intel8088Core implements Runnable {
       if (Prefix_repz() == 0)
          _clock.incClockCounter((byte) 0);
       else
-         _clock.incClockCounter((byte)9); // Add initial clock counts
+         _clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if (Prefix_repz() == 1) {
@@ -4976,13 +4980,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)12); // Add clocks per loop iteration
+         _clock.incClockCounter((byte) 12); // Add clocks per loop iteration
          // ushort localData = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
-         int localData = _biu.ReadMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
+         int localData = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
 
          _registers.AX = localData; // Write data to AX
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -5005,7 +5009,7 @@ public class Intel8088Core implements Runnable {
       if ((Prefix_repz() == 1) || (Prefix_repnz() == 1))
          _clock.incClockCounter((byte) 0);
       else
-         _clock.incClockCounter((byte)9); // Add initial clock counts
+         _clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if ((Prefix_repz() == 1) || (Prefix_repnz() == 1)) {
@@ -5019,13 +5023,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)15); // Add clocks per loop iteration
+         _clock.incClockCounter((byte) 15); // Add clocks per loop iteration
          // var localData = (byte)Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_ES, _registers.DI, 0x00);
-         byte localData = _biu.ReadMemoryByte(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
+         byte localData = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
 
          SubBytes((byte) (_registers.AX & 0x00FF), localData); // Perform comparison which sets Flags
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -5048,7 +5052,7 @@ public class Intel8088Core implements Runnable {
       if ((Prefix_repz() == 1) || (Prefix_repnz() == 1))
          _clock.incClockCounter((byte) 9);
       else
-         _clock.incClockCounter((byte)9); // Add initial clock counts
+         _clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if ((Prefix_repz() == 1) || (Prefix_repnz() == 1)) {
@@ -5062,13 +5066,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte)15); // Add clocks per loop iteration
+         _clock.incClockCounter((byte) 15); // Add clocks per loop iteration
          // ushort localData = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_ES, _registers.DI, 0x00);
-         int localData = _biu.ReadMemoryWord(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
+         int localData = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
 
          SubWords(_registers.AX, localData); // Perform comparison which sets Flags
-         if (_nmiLatched.IsSet() || (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -5874,55 +5878,168 @@ public class Intel8088Core implements Runnable {
    // Main loop
    // -------------------------------------------------
    // public Task loop(CancellationToken token)
-   @Override
-   public void run() {
-      _instLogger.trace("---> Main loop");
+   // @Override
+   // private void run() {
+   //    _instLogger.trace("---> Main loop");
 
-      for (int i = 0; i <= 32; i++) {
-         _clock.WaitForFallingEdge();
+   //    for (int i = 0; i <= 32; i++) {
+   //       _clock.WaitForFallingEdge();
+   //    }
+
+   //    _pfqInAddress = _registers.IP;
+   //    prefetch_queue_count = 0;
+
+   //    ResetSequence();
+
+   //    while (true) {
+   //       // clockCounter = 0;
+   //       if (_deviceAdapter.getResetPin() != 0)
+   //          ResetSequence();
+
+   //       // Wait for cycle counter to expire before processing traps or next instruction
+   //       if (_clock.getClockCounter() > 0) {
+   //          _clock.WaitForFallingEdge();
+   //       }
+
+   //       // Don't poll for interrupts between a Prefixes and instructions
+   //       if (_clock.getClockCounter() == 0 && !_pauseInterrupts) {
+   //          if (_nmiLatched.IsSet()) {
+   //             NmiHandler();
+   //          } else if (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0) {
+   //             IntrHandler();
+   //          } else if (Flag_t() != 0) {
+   //             TrapHandler();
+   //          }
+   //       }
+
+   //       // Process new instruction when previous instruction's cycle counter has expired
+   //       // Debounce prefixes after a non-prefix instruction is executed
+   //       if (_clock.getClockCounter() == 0) {
+   //          _lastInstrSetPrefix = false;
+   //          _pauseInterrupts = false;
+   //          ExecuteNewInstr();
+   //          // clockCounter=0;
+   //          if (_lastInstrSetPrefix == false)
+   //             _biu.setPrefixFlags((byte) 0x00);
+   //       }
+
+   //       // Fill prefetch queue between instructions
+   //       if (prefetch_queue_count < 4) {
+   //          PfqAddByte();
+   //       }
+   //    }
+   // }
+
+   private enum States {
+      POWERUP, RESET, RUN, HALT
+   }
+
+   private States state = States.POWERUP;
+
+   // RESET: Cases the processor to immediately terminate its present activity. The signal
+   // must transition LOW to HIGH and remain active HIGH for at least four clock cycles. 
+   // It restarts execution, as described in the instruction set description, when RESET
+   // returns LOW. RESET is internally synchronized
+   private byte lstResetPin = 0;
+   private int resetClkCnt;
+   private int delayClkCnt;
+
+   public void step() {
+      _instLogger.trace("---> step()");
+
+      byte curResetPin = pins.getResetPin();
+      if (lstResetPin == LOW && curResetPin == HIGH) {
+         resetClkCnt = 1;
       }
+      if (lstResetPin == HIGH && curResetPin == HIGH) {
+         if (resetClkCnt < 4)
+            resetClkCnt++;
+      } else if (lstResetPin == HIGH && curResetPin == LOW && resetClkCnt >= 4) {
+         // it takes 7 clock cycles to reset the system
+         delayClkCnt = 7;
+         state = States.RESET;
+      }
+      lstResetPin = curResetPin;
 
-      _pfqInAddress = _registers.IP;
-      prefetch_queue_count = 0;
+      switch (state) {
+         case POWERUP:
+            break;
+         case RESET:
+            if (delayClkCnt > 0)
+               delayClkCnt--;
+            else {
+               pins.setBusStatusPins(BusStatus.Pass);
 
-      ResetSequence();
+               _nmiLatched.Clear(); // Debounce NMI
 
-      while (true) {
-         // clockCounter = 0;
-         if (_deviceAdapter.getResetPin() != 0)
-            ResetSequence();
+               _clock.setClockCounter(10); // Debounce prefixes and cycle counter
+               _lastInstrSetPrefix = false;
+               _pauseInterrupts = false;
 
-         // Wait for cycle counter to expire before processing traps or next instruction
-         if (_clock.getClockCounter() > 0) {
-            _clock.WaitForFallingEdge();
-         }
+               // Reset registers
+               _registers.Flags = 0x0000;
+               _registers.ES = 0;
+               _registers.SS = 0;
+               _registers.DS = 0;
+               _registers.CS = 0xFFFF;
+               _registers.IP = 0;
 
-         // Don't poll for interrupts between a Prefixes and instructions
-         if (_clock.getClockCounter() == 0 && !_pauseInterrupts) {
-            if (_nmiLatched.IsSet()) {
-               NmiHandler();
-            } else if (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0) {
-               IntrHandler();
-            } else if (Flag_t() != 0) {
-               TrapHandler();
+               _pfqInAddress = 0;
+               prefetch_queue_count = 0;
+
+               pins.setAddrBusPins(0xFFFF0);
+               state = States.RUN;
             }
-         }
-
-         // Process new instruction when previous instruction's cycle counter has expired
-         // Debounce prefixes after a non-prefix instruction is executed
-         if (_clock.getClockCounter() == 0) {
-            _lastInstrSetPrefix = false;
-            _pauseInterrupts = false;
-            ExecuteNewInstr();
-            // clockCounter=0;
-            if (_lastInstrSetPrefix == false)
-               _biu.setPrefixFlags((byte)0x00);
-         }
-
-         // Fill prefetch queue between instructions
-         if (prefetch_queue_count < 4) {
-            PfqAddByte();
-         }
+            break;
+         case RUN:
+            break;
+         case HALT:
+            break;
+         default:
+            break;
       }
+      // _pfqInAddress = _registers.IP;
+      // prefetch_queue_count = 0;
+
+      // ResetSequence();
+
+      // while (true) {
+      //    // clockCounter = 0;
+      //    if (_deviceAdapter.getResetPin() != 0)
+      //       ResetSequence();
+
+      //    // Wait for cycle counter to expire before processing traps or next instruction
+      //    if (_clock.getClockCounter() > 0) {
+      //       _clock.WaitForFallingEdge();
+      //    }
+
+      //    // Don't poll for interrupts between a Prefixes and instructions
+      //    if (_clock.getClockCounter() == 0 && !_pauseInterrupts) {
+      //       if (_nmiLatched.IsSet()) {
+      //          NmiHandler();
+      //       } else if (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0) {
+      //          IntrHandler();
+      //       } else if (Flag_t() != 0) {
+      //          TrapHandler();
+      //       }
+      //    }
+
+      //    // Process new instruction when previous instruction's cycle counter has expired
+      //    // Debounce prefixes after a non-prefix instruction is executed
+      //    if (_clock.getClockCounter() == 0) {
+      //       _lastInstrSetPrefix = false;
+      //       _pauseInterrupts = false;
+      //       ExecuteNewInstr();
+      //       // clockCounter=0;
+      //       if (_lastInstrSetPrefix == false)
+      //          _biu.setPrefixFlags((byte) 0x00);
+      //    }
+
+      //    // Fill prefetch queue between instructions
+      //    if (prefetch_queue_count < 4) {
+      //       PfqAddByte();
+      //    }
+      // }
+
    }
 }

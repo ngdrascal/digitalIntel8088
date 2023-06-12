@@ -25,7 +25,7 @@ package us.rdodd.digital.i8088;
        +------------------------+
 */
 
-public interface IPinMap {
+public interface PinMap {
    final byte GND0 = 1;
    final byte A14 = 2;
    final byte A13 = 3;

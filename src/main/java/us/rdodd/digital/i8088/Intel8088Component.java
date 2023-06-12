@@ -5,7 +5,6 @@ import de.neemann.digital.core.NodeException;
 import de.neemann.digital.core.ObservableValue;
 import de.neemann.digital.core.ObservableValues;
 import de.neemann.digital.core.element.*;
-import de.neemann.digital.core.element.PinInfo;
 import de.neemann.digital.core.element.PinDescription.Direction;
 
 public class Intel8088Component extends Node implements Element {
@@ -25,8 +24,12 @@ public class Intel8088Component extends Node implements Element {
       public String getDescription(ElementAttributes elementAttributes) {
          return "A cycle accurate Intel 8088 processor.";
       }
-   }.addAttribute(Keys.ROTATE) // allows
-         .addAttribute(Keys.LABEL).addAttribute(Keys.DIP_DEFAULT).addAttribute(Keys.WIDTH).addAttribute(Keys.HEIGHT);
+   }
+         .addAttribute(Keys.ROTATE)
+         .addAttribute(Keys.LABEL)
+         .addAttribute(Keys.DIP_DEFAULT)
+         .addAttribute(Keys.WIDTH)
+         .addAttribute(Keys.HEIGHT);
 
    // Input pins
    private ObservableValue pinNmi;
@@ -70,12 +73,11 @@ public class Intel8088Component extends Node implements Element {
    private final ObservableValue pinA16;
    private final ObservableValue pinA15;
 
-   private IEmulatorDevice device;
+   private PinsExternalIntf devicePins;
+
    private long clkLastValue = 0;
 
-   private static Thread componentThread;
    private static Intel8088Core intel8088;
-   private AutoResetEvent clockChangedEvent;
 
    /**
     * Creates a component.
@@ -127,20 +129,17 @@ public class Intel8088Component extends Node implements Element {
       pinA16 = new ObservableValue("A16", 1).setDescription("Address bit 16").setPinNumber("38");
       pinA15 = new ObservableValue("A15", 1).setDescription("Address bit 15").setPinNumber("39");
 
+      Pins pins = new Pins();
+      devicePins = pins;
+      
       IBitLatch nmiLatch = new NmiLatch();
-      device = new EmulatorDevice();
-      IHostDeviceAdapter deviceAdapter = new EmulatorDeviceAdapter(device);
-      clockChangedEvent = new AutoResetEvent(false);
-      IClock clock = new Clock(deviceAdapter, nmiLatch, clockChangedEvent);
+      PinsInternalIntf internalPins = pins;
+      IClock clock = new Clock(internalPins, nmiLatch);
 
       Registers registers = new Registers();
-      ISimpleSignal simpleSignal = new SimpleSignal(false);
-      IBusInterfaceUnit biu = new BusInterfaceUnit(clock, registers, deviceAdapter, simpleSignal);
+      IBusInterfaceUnit biu = new BusInterfaceUnit(clock, registers, internalPins);
 
-      intel8088 = new Intel8088Core(clock, registers, biu, nmiLatch, deviceAdapter);
-
-      componentThread = new Thread(intel8088, "i8088");
-      componentThread.start();
+      intel8088 = new Intel8088Core(clock, registers, biu, nmiLatch, internalPins);
    }
 
    /**
@@ -150,19 +149,19 @@ public class Intel8088Component extends Node implements Element {
     */
    @Override
    public void readInputs() {
-      device.Write(IPinMap.NMI, (byte) pinNmi.getValue());
-      device.Write(IPinMap.INTR, (byte) pinIntr.getValue());
-      device.Write(IPinMap.RESET, (byte) pinReset.getValue());
-      device.Write(IPinMap.READY, (byte) pinReady.getValue());
-      device.Write(IPinMap.TEST, (byte) pinTest.getValue());
+      devicePins.setNMI((byte) pinNmi.getValue());
+      devicePins.setINTR((byte) pinIntr.getValue());
+      devicePins.setRESET((byte) pinReset.getValue());
+      devicePins.setREADY((byte) pinReady.getValue());
+      devicePins.setTEST((byte) pinTest.getValue());
 
       // set the clock last because it advances the simulation
-      long clkCurrentValue = pinClk.getValue();
-      if (clkCurrentValue != clkLastValue) {
-         device.Write(IPinMap.CLK, (byte) clkCurrentValue);
-         clkLastValue = clkCurrentValue;
+      byte clkCurValue = (byte) pinClk.getValue();
+      if (clkCurValue != clkLastValue) {
+         devicePins.setCLK((byte) clkCurValue);
+         clkLastValue = clkCurValue;
 
-         clockChangedEvent.set();
+         intel8088.step();
       }
    }
 
@@ -172,32 +171,39 @@ public class Intel8088Component extends Node implements Element {
     */
    @Override
    public void writeOutputs() {
-      pinA19.setValue(device.Read(IPinMap.A19));
-      pinA18.setValue(device.Read(IPinMap.A18));
-      pinA17.setValue(device.Read(IPinMap.A17));
-      pinA16.setValue(device.Read(IPinMap.A16));
-      pinA15.setValue(device.Read(IPinMap.A15));
-      pinA14.setValue(device.Read(IPinMap.A14));
-      pinA13.setValue(device.Read(IPinMap.A13));
-      pinA12.setValue(device.Read(IPinMap.A12));
-      pinA11.setValue(device.Read(IPinMap.A11));
-      pinA10.setValue(device.Read(IPinMap.A10));
-      pinA9.setValue(device.Read(IPinMap.A9));
-      pinA8.setValue(device.Read(IPinMap.A8));
-      pinAD7.setValue(device.Read(IPinMap.AD7));
+      pinA19.setValue(devicePins.getA19());
+      pinA18.setValue(devicePins.getA18());
+      pinA17.setValue(devicePins.getA17());
+      pinA16.setValue(devicePins.getA16());
+      pinA15.setValue(devicePins.getA15());
+      pinA14.setValue(devicePins.getA15());
+      pinA13.setValue(devicePins.getA13());
+      pinA12.setValue(devicePins.getA12());
+      pinA11.setValue(devicePins.getA11());
+      pinA10.setValue(devicePins.getA10());
+      pinA9.setValue(devicePins.getA9());
+      pinA8.setValue(devicePins.getA8());
+      pinAD7.setValue(devicePins.getAD7());
+      pinAD6.setValue(devicePins.getAD6());
+      pinAD5.setValue(devicePins.getAD5());
+      pinAD4.setValue(devicePins.getAD4());
+      pinAD3.setValue(devicePins.getAD3());
+      pinAD2.setValue(devicePins.getAD2());
+      pinAD1.setValue(devicePins.getAD1());
+      pinAD0.setValue(devicePins.getAD0());
 
-      pinQs1.setValue(device.Read(IPinMap.QS1));
-      pinQs0.setValue(device.Read(IPinMap.QS0));
+      pinQs1.setValue(devicePins.getQS1());
+      pinQs0.setValue(devicePins.getQS0());
 
-      pinS2.setValue(device.Read(IPinMap.S2));
-      pinS1.setValue(device.Read(IPinMap.S1));
-      pinS0.setValue(device.Read(IPinMap.S0));
+      pinS2.setValue(devicePins.getS2());
+      pinS1.setValue(devicePins.getS1());
+      pinS0.setValue(devicePins.getS0());
 
-      pinLock.setValue(device.Read(IPinMap.LOCK));
-      pinRqGt1.setValue(device.Read(IPinMap.RQGT1));
-      pinRqGt0.setValue(device.Read(IPinMap.RQGT0));
-      pinRd.setValue(device.Read(IPinMap.RD));
-      pinSs0.setValue(device.Read(IPinMap.SS0));
+      pinLock.setValue(devicePins.getLOCK());
+      pinRqGt1.setValue(devicePins.getRQGT1());
+      pinRqGt0.setValue(devicePins.getRQGT0());
+      pinRd.setValue(devicePins.getRD());
+      pinSs0.setValue(devicePins.getSS0());
    }
 
    /**

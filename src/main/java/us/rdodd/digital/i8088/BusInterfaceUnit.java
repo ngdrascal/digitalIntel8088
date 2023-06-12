@@ -6,8 +6,7 @@ import org.slf4j.LoggerFactory;
 public class BusInterfaceUnit implements IBusInterfaceUnit {
    private IClock _clock;
    private Registers _registers;
-   private IHostDeviceAdapter _deviceAdapter;
-   private ISimpleSignal _stateDoneSignal;
+   private PinsInternalIntf _deviceAdapter;
 
    private Logger _busLogger;
    private Logger _clkLogger;
@@ -16,12 +15,10 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
 
    public BusInterfaceUnit(IClock clock,
          Registers registers,
-         IHostDeviceAdapter deviceAdapter,
-         ISimpleSignal stateDoneSignal) {
+         PinsInternalIntf deviceAdapter) {
       _clock = clock;
       _registers = registers;
       _deviceAdapter = deviceAdapter;
-      _stateDoneSignal = stateDoneSignal;
 
       _busLogger = LoggerFactory.getLogger("cpu.bus");
       _clkLogger = LoggerFactory.getLogger("cpu.clock");
@@ -29,7 +26,7 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
    }
 
    @Override
-   public byte ReadCode(int offset) {
+   public byte readCode(int offset) {
       int address = CalculateAddress(false, SegmentRegs.CS, offset);
       PrintBusRequest(address, (byte) 0x00, BusStatus.Code, SegmentRegs.CS);
 
@@ -37,7 +34,7 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
    }
 
    @Override
-   public byte ReadMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset) {
+   public byte readMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset) {
       int address = CalculateAddress(useSegmentOverride, segmentReg, offset);
       PrintBusRequest(address, (byte) 0x00, BusStatus.MemRd, segmentReg);
 
@@ -45,19 +42,19 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
    }
 
    @Override
-   public int ReadMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset) {
-      byte dataLo = ReadMemoryByte(useSegmentOverride, segmentReg, offset);
+   public int readMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset) {
+      byte dataLo = readMemoryByte(useSegmentOverride, segmentReg, offset);
 
       offset++; // 16-bit value allows for wrapping within a segment
 
-      byte dataHi = ReadMemoryByte(useSegmentOverride, segmentReg, offset);
+      byte dataHi = readMemoryByte(useSegmentOverride, segmentReg, offset);
 
       int readData = (int) ((dataHi << 8) | dataLo);
       return readData;
    }
 
    @Override
-   public void WriteMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, byte data) {
+   public void writeMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, byte data) {
       int address = CalculateAddress(useSegmentOverride, segmentReg, offset);
       PrintBusRequest(address, data, BusStatus.MemWr, segmentReg);
 
@@ -65,18 +62,18 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
    }
 
    @Override
-   public void WriteMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, int data) {
+   public void writeMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, int data) {
       byte dataLo = (byte) (data & 0x00FF);
-      WriteMemoryByte(useSegmentOverride, segmentReg, offset, dataLo);
+      writeMemoryByte(useSegmentOverride, segmentReg, offset, dataLo);
 
       offset++; // 16-bit value allows for wrapping within a segment
 
       byte dataHi = (byte) (data >> 8);
-      WriteMemoryByte(useSegmentOverride, segmentReg, offset, dataHi);
+      writeMemoryByte(useSegmentOverride, segmentReg, offset, dataHi);
    }
 
    @Override
-   public byte ReadIoByte(int offset) {
+   public byte readIoByte(int offset) {
       int address = CalculateAddress(false, SegmentRegs.None, offset);
       PrintBusRequest(address, (byte) 0x00, BusStatus.IoRd, SegmentRegs.None);
 
@@ -84,19 +81,19 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
    }
 
    @Override
-   public int ReadIoWord(int offset) {
-      byte dataLo = ReadIoByte(offset);
+   public int readIoWord(int offset) {
+      byte dataLo = readIoByte(offset);
 
       offset++; // 16-bit value allows for wrapping within a segment
 
-      byte dataHi = ReadIoByte(offset);
+      byte dataHi = readIoByte(offset);
 
       int readData = (int) ((dataHi << 8) | dataLo);
       return readData;
    }
 
    @Override
-   public void WriteIoByte(int offset, byte data) {
+   public void writeIoByte(int offset, byte data) {
       int address = CalculateAddress(false, SegmentRegs.None, offset);
       PrintBusRequest(address, data, BusStatus.IoWr, SegmentRegs.None);
 
@@ -104,18 +101,18 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
    }
 
    @Override
-   public void WriteIoWord(int offset, int data) {
+   public void writeIoWord(int offset, int data) {
       byte dataLo = (byte) (data & 0x00FF);
-      WriteIoByte(offset, dataLo);
+      writeIoByte(offset, dataLo);
 
       offset++; // 16-bit value allows for wrapping within a segment
 
       byte dataHi = (byte) (data >> 8);
-      WriteIoByte(offset, dataHi);
+      writeIoByte(offset, dataHi);
    }
 
    @Override
-   public byte InterruptAck() {
+   public byte interruptAck() {
       _assertLock = true;
       ExecuteBusCycle(BusStatus.IntrAck, 0x00000);
       _clock.WaitForFallingEdge();
@@ -125,7 +122,7 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
    }
 
    @Override
-   public byte SendHalt() {
+   public byte sendHalt() {
       _clock.WaitForRisingEdge();
 
       _deviceAdapter.setBusStatusPins(BusStatus.Halt);
@@ -205,8 +202,6 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
 
       _deviceAdapter.setAddrBusPins(address);
 
-      _stateDoneSignal.Signal();
-
       // T2 - If a read cycle, disable the AD[7:0] buffer
       // If a write cycle, drive data onto the AD[7:0] pins
       // -----------------------------------------------------------------------------
@@ -228,8 +223,6 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
          _deviceAdapter.setDataBusPins(writeData);
       }
 
-      _stateDoneSignal.Signal();
-
       // T3 - Sample the READY signal on the falling edge of CLK until it goes high
       // Then set the Status bits to Passive (b111)
       // -----------------------------------------------------------------------------
@@ -241,8 +234,6 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
 
       _deviceAdapter.setBusStatusPins(BusStatus.Pass);
 
-      _stateDoneSignal.Signal();
-
       // T4 - Sample read data on the next falling edge of CLK
       // -----------------------------------------------------------------------------
       _clock.WaitForFallingEdge();
@@ -251,8 +242,6 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
       byte result = busStatus.IsReadOperation() ? _deviceAdapter.getDataBusPins() : (byte) 0xEE;
 
       _deviceAdapter.setRdPin((byte) 1);
-
-      _stateDoneSignal.Signal();
 
       return result;
    }

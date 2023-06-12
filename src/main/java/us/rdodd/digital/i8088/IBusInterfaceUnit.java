@@ -1,27 +1,27 @@
 package us.rdodd.digital.i8088;
 
 public interface IBusInterfaceUnit {
-   byte ReadCode(int offset);
+   byte readCode(int offset);
 
-   byte ReadMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset);
+   byte readMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset);
 
-   int ReadMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset);
+   int readMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset);
 
-   void WriteMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, byte data);
+   void writeMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, byte data);
 
-   void WriteMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, int data);
+   void writeMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, int data);
 
-   byte ReadIoByte(int offset);
+   byte readIoByte(int offset);
 
-   int ReadIoWord(int offset);
+   int readIoWord(int offset);
 
-   void WriteIoByte(int offset, byte data);
+   void writeIoByte(int offset, byte data);
 
-   void WriteIoWord(int offset, int data);
+   void writeIoWord(int offset, int data);
 
-   byte InterruptAck();
+   byte interruptAck();
 
-   byte SendHalt();
+   byte sendHalt();
 
    byte getPrefixFlags();
 

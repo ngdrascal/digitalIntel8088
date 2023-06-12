@@ -1,6 +1,6 @@
 package us.rdodd.digital.i8088;
 
-public interface IHostDeviceAdapter {
+public interface PinsInternalIntf {
    void setAddrBusPins(int value);
 
    byte getDataBusPins();
@@ -9,7 +9,7 @@ public interface IHostDeviceAdapter {
 
    void setBusStatusPins(BusStatus value);
 
-   void setSegmentRegister(byte value);
+   void setSegRegPins(byte value);
 
    byte getIntrPin();
 
