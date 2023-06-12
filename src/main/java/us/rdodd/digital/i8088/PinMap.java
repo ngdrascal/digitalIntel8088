@@ -70,5 +70,5 @@ public interface PinMap {
 
    public final byte[] DataPins = { AD0, AD1, AD2, AD3, AD4, AD5, AD6, AD7 };
    public final byte[] AddrPins = { AD0, AD1, AD2, AD3, AD4, AD5, AD6, AD7, A8, A9,
-                                    A10, A11, A12, A13, A14, A15, A16, A17, A18, A19 };
+         A10, A11, A12, A13, A14, A15, A16, A17, A18, A19 };
 };

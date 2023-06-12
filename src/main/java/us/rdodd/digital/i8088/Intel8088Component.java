@@ -128,7 +128,6 @@ public class Intel8088Component extends Node implements Element {
       pinA17 = new ObservableValue("A17", 1).setDescription("Address bit 17").setPinNumber("37");
       pinA16 = new ObservableValue("A16", 1).setDescription("Address bit 16").setPinNumber("38");
       pinA15 = new ObservableValue("A15", 1).setDescription("Address bit 15").setPinNumber("39");
-
       Pins pins = new Pins();
       devicePins = pins;
       

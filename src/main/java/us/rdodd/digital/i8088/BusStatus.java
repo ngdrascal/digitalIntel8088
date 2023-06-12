@@ -1,14 +1,14 @@
 package us.rdodd.digital.i8088;
 
 public enum BusStatus {
-   IntrAck((byte)0),
-   IoRd((byte)1),
-   IoWr((byte)2),
-   Halt((byte)3),
-   Code((byte)4),
-   MemRd((byte)5),
-   MemWr((byte)6),
-   Pass((byte)7);
+   IntrAck((byte) 0),
+   IoRd((byte) 1),
+   IoWr((byte) 2),
+   Halt((byte) 3),
+   Code((byte) 4),
+   MemRd((byte) 5),
+   MemWr((byte) 6),
+   Pass((byte) 7);
 
    private byte value;
 
