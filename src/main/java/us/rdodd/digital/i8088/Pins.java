@@ -320,7 +320,6 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    @Override
    public byte getSS0() {
       return pinValues[PinMap.SS0];
-
    }
 
    @Override
@@ -336,18 +335,15 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    @Override
    public byte getA17() {
       return pinValues[PinMap.A17];
-
    }
 
    @Override
    public byte getA16() {
       return pinValues[PinMap.A16];
-
    }
 
    @Override
    public byte getA15() {
       return pinValues[PinMap.A15];
-
    }
 }
