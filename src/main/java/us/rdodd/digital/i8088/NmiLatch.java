@@ -1,6 +1,6 @@
 package us.rdodd.digital.i8088;
 
-public class NmiLatch implements IBitLatch {
+public class NmiLatch implements BitLatchIntf {
    private boolean _value;
 
    public void Set() {

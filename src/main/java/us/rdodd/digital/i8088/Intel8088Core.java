@@ -89,18 +89,17 @@ public class Intel8088Core {
          4, 0, 0, 4, 4, 0, 4, 0, 0, 4, 4, 0, 0, 4, 0, 4, 4, 0, 4, 0, 0, 4, 0, 4, 4, 0, 0, 4, 4, 0, 4, 0, 0, 4
    };
 
-   private IClock _clock;
+   private ClockIntf _clock;
    private Registers _registers;
    private IBusInterfaceUnit _biu;
-   private IBitLatch _nmiLatched;
+   private BitLatchIntf _nmiLatched;
    private PinsInternalIntf pins;
-   private Logger _logger;
    private Logger _instLogger;
 
-   public Intel8088Core(IClock clock,
+   public Intel8088Core(ClockIntf clock,
          Registers registers,
          IBusInterfaceUnit biu,
-         IBitLatch nmiLatched,
+         BitLatchIntf nmiLatched,
          PinsInternalIntf pins) {
       _clock = clock;
       _registers = registers;
@@ -108,7 +107,7 @@ public class Intel8088Core {
       _nmiLatched = nmiLatched;
       this.pins = pins;
 
-      _logger = LoggerFactory.getLogger("cpu");
+      // _logger = LoggerFactory.getLogger("cpu");
       _instLogger = LoggerFactory.getLogger("cpu.instruction");
 
       pins.setBusStatusPins(BusStatus.Pass);
@@ -3750,8 +3749,8 @@ public class Intel8088Core {
 
       boolean directIntr;
       do {
-         _clock.WaitForFallingEdge();
-         _clock.WaitForFallingEdge();
+         _clock.waitForFallingEdge();
+         _clock.waitForFallingEdge();
 
          // if (_deviceAdapter.IntrPin != 0 && Flag_i() == 1) direct_intr = true;
          // else direct_intr = false;
@@ -3760,8 +3759,8 @@ public class Intel8088Core {
       } while (!directIntr && !_nmiLatched.IsSet() && pins.getResetPin() == 0);
 
       pins.setBusStatusPins(BusStatus.Pass);
-      _clock.WaitForFallingEdge();
-      _clock.WaitForFallingEdge();
+      _clock.waitForFallingEdge();
+      _clock.waitForFallingEdge();
    }
 
    // -------------------------------------------------------------------------
@@ -3783,7 +3782,7 @@ public class Intel8088Core {
 
       boolean directIntr;
       do {
-         _clock.WaitForFallingEdge();
+         _clock.waitForFallingEdge();
          // if (_deviceAdapter.IntrPin != 0 && Flag_i() == 1) direct_intr = true;
          // else direct_intr = false;
 

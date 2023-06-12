@@ -1,6 +1,6 @@
 package us.rdodd.digital.i8088;
 
-public interface IBitLatch {
+public interface BitLatchIntf {
    void Set();
 
    void Clear();

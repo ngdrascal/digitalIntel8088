@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BusInterfaceUnit implements IBusInterfaceUnit {
-   private IClock _clock;
+   private ClockIntf _clock;
    private Registers _registers;
    private PinsInternalIntf _deviceAdapter;
 
@@ -13,7 +13,7 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
    private boolean _assertLock;
    private byte _prefixFlags;
 
-   public BusInterfaceUnit(IClock clock,
+   public BusInterfaceUnit(ClockIntf clock,
          Registers registers,
          PinsInternalIntf deviceAdapter) {
       _clock = clock;
@@ -115,15 +115,15 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
    public byte interruptAck() {
       _assertLock = true;
       ExecuteBusCycle(BusStatus.IntrAck, 0x00000);
-      _clock.WaitForFallingEdge();
-      _clock.WaitForFallingEdge();
+      _clock.waitForFallingEdge();
+      _clock.waitForFallingEdge();
       byte readData = ExecuteBusCycle(BusStatus.IntrAck, 0x00000);
       return readData;
    }
 
    @Override
    public byte sendHalt() {
-      _clock.WaitForRisingEdge();
+      _clock.waitForRisingEdge();
 
       _deviceAdapter.setBusStatusPins(BusStatus.Halt);
 
@@ -190,14 +190,14 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
 
       // T0.5 Drive the status pins to begin the cycle on the rising edge of CLK
       // -----------------------------------------------------------------------------
-      _clock.WaitForRisingEdge();
+      _clock.waitForRisingEdge();
       _clkLogger.trace("----T0.5----");
 
       _deviceAdapter.setBusStatusPins(busStatus);
 
       // T1
       // -----------------------------------------------------------------------------
-      _clock.WaitForFallingEdge();
+      _clock.waitForFallingEdge();
       _clkLogger.trace("----T1----");
 
       _deviceAdapter.setAddrBusPins(address);
@@ -206,7 +206,7 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
       // If a write cycle, drive data onto the AD[7:0] pins
       // -----------------------------------------------------------------------------
 
-      _clock.WaitForFallingEdge();
+      _clock.waitForFallingEdge();
       _clkLogger.trace("----T2----");
 
       // More likely to get POST error 101 with this code
@@ -228,7 +228,7 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
       // -----------------------------------------------------------------------------
 
       do {
-         _clock.WaitForFallingEdge();
+         _clock.waitForFallingEdge();
          _clkLogger.trace("----T3----");
       } while (_deviceAdapter.getReadyPin() == 0);
 
@@ -236,7 +236,7 @@ public class BusInterfaceUnit implements IBusInterfaceUnit {
 
       // T4 - Sample read data on the next falling edge of CLK
       // -----------------------------------------------------------------------------
-      _clock.WaitForFallingEdge();
+      _clock.waitForFallingEdge();
       _clkLogger.trace("----T4----");
 
       byte result = busStatus.IsReadOperation() ? _deviceAdapter.getDataBusPins() : (byte) 0xEE;

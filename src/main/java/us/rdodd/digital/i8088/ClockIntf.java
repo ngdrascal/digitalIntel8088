@@ -1,9 +1,9 @@
 package us.rdodd.digital.i8088;
 
-public interface IClock {
-   void WaitForRisingEdge();
+public interface ClockIntf {
+   void waitForRisingEdge();
 
-   void WaitForFallingEdge();
+   void waitForFallingEdge();
 
    long getClockCounter();
 

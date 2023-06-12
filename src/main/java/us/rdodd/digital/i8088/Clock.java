@@ -1,13 +1,13 @@
 package us.rdodd.digital.i8088;
 
-public class Clock implements IClock {
+public class Clock implements ClockIntf {
    private PinsInternalIntf pins;
-   private IBitLatch nmiLatch;
+   private BitLatchIntf nmiLatch;
    private long clockCounter;
    private byte lastNmi;
    private byte currentNmi;
 
-   public Clock(PinsInternalIntf pins, IBitLatch nmiLatch) {
+   public Clock(PinsInternalIntf pins, BitLatchIntf nmiLatch) {
       this.pins = pins;
       this.nmiLatch = nmiLatch;
 
@@ -27,7 +27,7 @@ public class Clock implements IClock {
       clockCounter += amount;
    }
 
-   public void WaitForRisingEdge() {
+   public void waitForRisingEdge() {
       // First ensure clock is at a low level
       while (pins.getClkPin() == 1) {
       }
@@ -37,7 +37,7 @@ public class Clock implements IClock {
       }
    }
 
-   public void WaitForFallingEdge() {
+   public void waitForFallingEdge() {
       if (clockCounter > 0)
          // Count down clock_Counter here to keep new opcodes from beginning
          // yet still allowing the prefetch queue to fill

@@ -131,9 +131,9 @@ public class Intel8088Component extends Node implements Element {
       Pins pins = new Pins();
       devicePins = pins;
       
-      IBitLatch nmiLatch = new NmiLatch();
+      BitLatchIntf nmiLatch = new NmiLatch();
       PinsInternalIntf internalPins = pins;
-      IClock clock = new Clock(internalPins, nmiLatch);
+      ClockIntf clock = new Clock(internalPins, nmiLatch);
 
       Registers registers = new Registers();
       IBusInterfaceUnit biu = new BusInterfaceUnit(clock, registers, internalPins);
