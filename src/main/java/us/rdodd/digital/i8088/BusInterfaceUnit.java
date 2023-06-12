@@ -3,7 +3,7 @@ package us.rdodd.digital.i8088;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BusInterfaceUnit implements IBusInterfaceUnit {
+public class BusInterfaceUnit implements BusInterfaceUnitIntf {
    private ClockIntf _clock;
    private Registers _registers;
    private PinsInternalIntf _deviceAdapter;

@@ -91,14 +91,14 @@ public class Intel8088Core {
 
    private ClockIntf _clock;
    private Registers _registers;
-   private IBusInterfaceUnit _biu;
+   private BusInterfaceUnitIntf _biu;
    private BitLatchIntf _nmiLatched;
    private PinsInternalIntf pins;
    private Logger _instLogger;
 
    public Intel8088Core(ClockIntf clock,
          Registers registers,
-         IBusInterfaceUnit biu,
+         BusInterfaceUnitIntf biu,
          BitLatchIntf nmiLatched,
          PinsInternalIntf pins) {
       _clock = clock;

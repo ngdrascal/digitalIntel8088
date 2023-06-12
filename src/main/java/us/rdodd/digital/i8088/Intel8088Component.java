@@ -136,7 +136,7 @@ public class Intel8088Component extends Node implements Element {
       ClockIntf clock = new Clock(internalPins, nmiLatch);
 
       Registers registers = new Registers();
-      IBusInterfaceUnit biu = new BusInterfaceUnit(clock, registers, internalPins);
+      BusInterfaceUnitIntf biu = new BusInterfaceUnit(clock, registers, internalPins);
 
       intel8088 = new Intel8088Core(clock, registers, biu, nmiLatch, internalPins);
    }

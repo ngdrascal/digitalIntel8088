@@ -1,6 +1,6 @@
 package us.rdodd.digital.i8088;
 
-public interface IBusInterfaceUnit {
+public interface BusInterfaceUnitIntf {
    byte readCode(int offset);
 
    byte readMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset);
