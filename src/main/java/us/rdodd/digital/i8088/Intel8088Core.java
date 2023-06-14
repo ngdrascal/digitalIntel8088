@@ -5951,6 +5951,7 @@ public class Intel8088Core {
          resetClkCnt = 1;
       }
       if (lstResetPin == HIGH && curResetPin == HIGH) {
+          // the RESET pin must be held high for at least 4 clock cycles
          if (resetClkCnt < 4)
             resetClkCnt++;
       } else if (lstResetPin == HIGH && curResetPin == LOW && resetClkCnt >= 4) {

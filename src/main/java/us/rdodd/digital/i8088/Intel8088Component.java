@@ -157,7 +157,7 @@ public class Intel8088Component extends Node implements Element {
       // set the clock last because it advances the simulation
       byte clkCurValue = (byte) pinClk.getValue();
       if (clkCurValue != clkLastValue) {
-         devicePins.setCLK((byte) clkCurValue);
+         devicePins.setCLK(clkCurValue);
          clkLastValue = clkCurValue;
 
          intel8088.step();

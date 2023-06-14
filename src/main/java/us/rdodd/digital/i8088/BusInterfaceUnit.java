@@ -4,41 +4,39 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BusInterfaceUnit implements BusInterfaceUnitIntf {
-   private ClockIntf _clock;
-   private Registers _registers;
-   private PinsInternalIntf _deviceAdapter;
+   private ClockIntf clock;
+   private Registers registers;
+   private PinsInternalIntf pins;
 
-   private Logger _busLogger;
-   private Logger _clkLogger;
-   private boolean _assertLock;
-   private byte _prefixFlags;
+   private Logger busLogger;
+   private Logger clkLogger;
+   private boolean assertLock;
+   private byte prefixFlags;
 
-   public BusInterfaceUnit(ClockIntf clock,
-         Registers registers,
-         PinsInternalIntf deviceAdapter) {
-      _clock = clock;
-      _registers = registers;
-      _deviceAdapter = deviceAdapter;
+   public BusInterfaceUnit(ClockIntf clock, Registers registers, PinsInternalIntf pins) {
+      this.clock = clock;
+      this.registers = registers;
+      this.pins = pins;
 
-      _busLogger = LoggerFactory.getLogger("cpu.bus");
-      _clkLogger = LoggerFactory.getLogger("cpu.clock");
-      _assertLock = false;
+      busLogger = LoggerFactory.getLogger("cpu.bus");
+      clkLogger = LoggerFactory.getLogger("cpu.clock");
+      assertLock = false;
    }
 
    @Override
    public byte readCode(int offset) {
-      int address = CalculateAddress(false, SegmentRegs.CS, offset);
-      PrintBusRequest(address, (byte) 0x00, BusStatus.Code, SegmentRegs.CS);
+      int address = calculateAddress(false, SegmentRegs.CS, offset);
+      printBusRequest(address, (byte) 0x00, BusStatus.Code, SegmentRegs.CS);
 
-      return ExecuteBusCycle(BusStatus.Code, address);
+      return executeBusCycle(BusStatus.Code, address);
    }
 
    @Override
    public byte readMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset) {
-      int address = CalculateAddress(useSegmentOverride, segmentReg, offset);
-      PrintBusRequest(address, (byte) 0x00, BusStatus.MemRd, segmentReg);
+      int address = calculateAddress(useSegmentOverride, segmentReg, offset);
+      printBusRequest(address, (byte) 0x00, BusStatus.MemRd, segmentReg);
 
-      return ExecuteBusCycle(BusStatus.MemRd, address);
+      return executeBusCycle(BusStatus.MemRd, address);
    }
 
    @Override
@@ -55,10 +53,10 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
    @Override
    public void writeMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, byte data) {
-      int address = CalculateAddress(useSegmentOverride, segmentReg, offset);
-      PrintBusRequest(address, data, BusStatus.MemWr, segmentReg);
+      int address = calculateAddress(useSegmentOverride, segmentReg, offset);
+      printBusRequest(address, data, BusStatus.MemWr, segmentReg);
 
-      ExecuteBusCycle(BusStatus.MemWr, address, data);
+      executeBusCycle(BusStatus.MemWr, address, data);
    }
 
    @Override
@@ -74,10 +72,10 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
    @Override
    public byte readIoByte(int offset) {
-      int address = CalculateAddress(false, SegmentRegs.None, offset);
-      PrintBusRequest(address, (byte) 0x00, BusStatus.IoRd, SegmentRegs.None);
+      int address = calculateAddress(false, SegmentRegs.None, offset);
+      printBusRequest(address, (byte) 0x00, BusStatus.IoRd, SegmentRegs.None);
 
-      return ExecuteBusCycle(BusStatus.IoRd, address);
+      return executeBusCycle(BusStatus.IoRd, address);
    }
 
    @Override
@@ -94,10 +92,10 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
    @Override
    public void writeIoByte(int offset, byte data) {
-      int address = CalculateAddress(false, SegmentRegs.None, offset);
-      PrintBusRequest(address, data, BusStatus.IoWr, SegmentRegs.None);
+      int address = calculateAddress(false, SegmentRegs.None, offset);
+      printBusRequest(address, data, BusStatus.IoWr, SegmentRegs.None);
 
-      ExecuteBusCycle(BusStatus.IoWr, address, data);
+      executeBusCycle(BusStatus.IoWr, address, data);
    }
 
    @Override
@@ -113,44 +111,44 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
    @Override
    public byte interruptAck() {
-      _assertLock = true;
-      ExecuteBusCycle(BusStatus.IntrAck, 0x00000);
-      _clock.waitForFallingEdge();
-      _clock.waitForFallingEdge();
-      byte readData = ExecuteBusCycle(BusStatus.IntrAck, 0x00000);
+      assertLock = true;
+      executeBusCycle(BusStatus.IntrAck, 0x00000);
+      clock.waitForFallingEdge();
+      clock.waitForFallingEdge();
+      byte readData = executeBusCycle(BusStatus.IntrAck, 0x00000);
       return readData;
    }
 
    @Override
    public byte sendHalt() {
-      _clock.waitForRisingEdge();
+      clock.waitForRisingEdge();
 
-      _deviceAdapter.setBusStatusPins(BusStatus.Halt);
+      pins.setBusStatusPins(BusStatus.Halt);
 
       return (byte) 0xEE;
    }
 
-   private int CalculateAddress(boolean useSegmentOverride, SegmentRegs segmentReg, int offset) {
+   private int calculateAddress(boolean useSegmentOverride, SegmentRegs segmentReg, int offset) {
       int address = 0;
 
       SegmentRegs localSegmentOverride = SegmentRegs.FromInt(getPrefixFlags() & 0xF0);
 
       if (useSegmentOverride && localSegmentOverride.value != 0) {
          // Add two additional clocks for segment override
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
 
          switch (localSegmentOverride) {
             case CS:
-               address = (int) ((_registers.CS << 4) + offset);
+               address = (int) ((registers.CS << 4) + offset);
                break;
             case DS:
-               address = (int) ((_registers.DS << 4) + offset);
+               address = (int) ((registers.DS << 4) + offset);
                break;
             case ES:
-               address = (int) ((_registers.ES << 4) + offset);
+               address = (int) ((registers.ES << 4) + offset);
                break;
             case SS:
-               address = (int) ((_registers.SS << 4) + offset);
+               address = (int) ((registers.SS << 4) + offset);
                break;
             case None:
                break;
@@ -162,16 +160,16 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
                address = offset;
                break;
             case CS:
-               address = (int) ((_registers.CS << 4) + offset);
+               address = (int) ((registers.CS << 4) + offset);
                break;
             case DS:
-               address = (int) ((_registers.DS << 4) + offset);
+               address = (int) ((registers.DS << 4) + offset);
                break;
             case ES:
-               address = (int) ((_registers.ES << 4) + offset);
+               address = (int) ((registers.ES << 4) + offset);
                break;
             case SS:
-               address = (int) ((_registers.SS << 4) + offset);
+               address = (int) ((registers.SS << 4) + offset);
                break;
          }
       }
@@ -179,48 +177,48 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
       return address;
    }
 
-   private byte ExecuteBusCycle(BusStatus busStatus, int address) {
-      return ExecuteBusCycle(busStatus, address, (byte) 0);
+   private byte executeBusCycle(BusStatus busStatus, int address) {
+      return executeBusCycle(busStatus, address, (byte) 0);
    }
 
-   private byte ExecuteBusCycle(BusStatus busStatus, int address, byte writeData) {
+   private byte executeBusCycle(BusStatus busStatus, int address, byte writeData) {
       //////////////////////////////////////////
       // Execute the 8088 Maximum Mode Bus Cycle
       //////////////////////////////////////////
 
       // T0.5 Drive the status pins to begin the cycle on the rising edge of CLK
       // -----------------------------------------------------------------------------
-      _clock.waitForRisingEdge();
-      _clkLogger.trace("----T0.5----");
+      clock.waitForRisingEdge();
+      clkLogger.trace("----T0.5----");
 
-      _deviceAdapter.setBusStatusPins(busStatus);
+      pins.setBusStatusPins(busStatus);
 
       // T1
       // -----------------------------------------------------------------------------
-      _clock.waitForFallingEdge();
-      _clkLogger.trace("----T1----");
+      clock.waitForFallingEdge();
+      clkLogger.trace("----T1----");
 
-      _deviceAdapter.setAddrBusPins(address);
+      pins.setAddrBusPins(address);
 
       // T2 - If a read cycle, disable the AD[7:0] buffer
       // If a write cycle, drive data onto the AD[7:0] pins
       // -----------------------------------------------------------------------------
 
-      _clock.waitForFallingEdge();
-      _clkLogger.trace("----T2----");
+      clock.waitForFallingEdge();
+      clkLogger.trace("----T2----");
 
       // More likely to get POST error 101 with this code
-      if (_assertLock) {
-         _deviceAdapter.setLockPin((byte) 0x0);
-         _assertLock = false;
+      if (assertLock) {
+         pins.setLockPin((byte) 0x0);
+         assertLock = false;
       } else {
-         _deviceAdapter.setLockPin((byte) 0x1);
+         pins.setLockPin((byte) 0x1);
       }
 
       if (busStatus.IsReadOperation()) {
-         _deviceAdapter.setRdPin((byte) 0);
+         pins.setRdPin((byte) 0);
       } else {
-         _deviceAdapter.setDataBusPins(writeData);
+         pins.setDataBusPins(writeData);
       }
 
       // T3 - Sample the READY signal on the falling edge of CLK until it goes high
@@ -228,25 +226,25 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
       // -----------------------------------------------------------------------------
 
       do {
-         _clock.waitForFallingEdge();
-         _clkLogger.trace("----T3----");
-      } while (_deviceAdapter.getReadyPin() == 0);
+         clock.waitForFallingEdge();
+         clkLogger.trace("----T3----");
+      } while (pins.getReadyPin() == 0);
 
-      _deviceAdapter.setBusStatusPins(BusStatus.Pass);
+      pins.setBusStatusPins(BusStatus.Pass);
 
       // T4 - Sample read data on the next falling edge of CLK
       // -----------------------------------------------------------------------------
-      _clock.waitForFallingEdge();
-      _clkLogger.trace("----T4----");
+      clock.waitForFallingEdge();
+      clkLogger.trace("----T4----");
 
-      byte result = busStatus.IsReadOperation() ? _deviceAdapter.getDataBusPins() : (byte) 0xEE;
+      byte result = busStatus.IsReadOperation() ? pins.getDataBusPins() : (byte) 0xEE;
 
-      _deviceAdapter.setRdPin((byte) 1);
+      pins.setRdPin((byte) 1);
 
       return result;
    }
 
-   private void PrintBusRequest(int addr, byte data, BusStatus status, SegmentRegs segReg) {
+   private void printBusRequest(int addr, byte data, BusStatus status, SegmentRegs segReg) {
       String statusStr;
 
       switch (status) {
@@ -284,21 +282,21 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
       String dataStr = status == BusStatus.MemWr || status == BusStatus.IoWr ? String.format("X2", data) : "--";
 
-      _busLogger.trace("{0} {1} {2} {3:X5}:{4}", statusStr, area, segRegStr, addr, dataStr);
+      busLogger.trace("{0} {1} {2} {3:X5}:{4}", statusStr, area, segRegStr, addr, dataStr);
    }
 
    @Override
    public byte getPrefixFlags() {
-      return _prefixFlags;
+      return prefixFlags;
    }
 
    @Override
    public void setPrefixFlags(byte value) {
-      _prefixFlags = value;
+      prefixFlags = value;
    }
 
    @Override
    public void orEqPrefixFlags(byte value) {
-      _prefixFlags += value;
+      prefixFlags += value;
    }
 }

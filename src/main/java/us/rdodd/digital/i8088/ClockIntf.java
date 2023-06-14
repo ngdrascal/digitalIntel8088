@@ -5,6 +5,10 @@ public interface ClockIntf {
 
    void waitForFallingEdge();
 
+   Clock addAction(EdgeDirection dir, OnClockEdgeIntf lambda);
+
+   int step(EdgeDirection currentEdge);
+
    long getClockCounter();
 
    void setClockCounter(long value);
