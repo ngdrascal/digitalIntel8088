@@ -12,7 +12,9 @@ public class Intel8088Component extends Node implements Element {
    /**
     * The description of the new component
     */
-   public static final ElementTypeDescription DESCRIPTION = new ElementTypeDescription(Intel8088Component.class,
+   public static final ElementTypeDescription DESCRIPTION = new ElementTypeDescription(
+         "Intel-8088",
+         Intel8088Component.class,
          new PinInfo("NMI", "Non-maskable Interrupt", Direction.input).setPinNumber("17"),
          new PinInfo("NTR", "Maskable Interrupt", Direction.input).setPinNumber("18"),
          new PinInfo("CLK", "Clock", Direction.input).setPinNumber("19"),
@@ -78,6 +80,8 @@ public class Intel8088Component extends Node implements Element {
    private long clkLastValue = 0;
 
    private static Intel8088Core intel8088;
+   private static Thread i8088Thread;
+   private static int threadCount = 0;
 
    /**
     * Creates a component.
@@ -130,7 +134,7 @@ public class Intel8088Component extends Node implements Element {
       pinA15 = new ObservableValue("A15", 1).setDescription("Address bit 15").setPinNumber("39");
       Pins pins = new Pins();
       devicePins = pins;
-      
+
       BitLatchIntf nmiLatch = new NmiLatch();
       PinsInternalIntf internalPins = pins;
       ClockIntf clock = new Clock(internalPins, nmiLatch);
@@ -139,6 +143,14 @@ public class Intel8088Component extends Node implements Element {
       BusInterfaceUnitIntf biu = new BusInterfaceUnit(clock, registers, internalPins);
 
       intel8088 = new Intel8088Core(clock, registers, biu, nmiLatch, internalPins);
+      if (i8088Thread != null) {
+         i8088Thread.interrupt();
+         i8088Thread = null;
+      }
+      i8088Thread = new Thread(intel8088, "i8088-" + threadCount);
+      threadCount++;
+
+      i8088Thread.start();
    }
 
    /**
@@ -160,7 +172,7 @@ public class Intel8088Component extends Node implements Element {
          devicePins.setCLK(clkCurValue);
          clkLastValue = clkCurValue;
 
-         intel8088.step();
+         // intel8088.step();
       }
    }
 

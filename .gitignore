@@ -75,3 +75,4 @@ buildNumber.properties
 .vscode/launch.json
 .vscode/settings.json
 docs/MLC86_Plus.ino
+digitalIntel8088.jar

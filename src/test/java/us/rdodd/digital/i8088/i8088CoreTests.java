@@ -39,16 +39,16 @@ public class i8088CoreTests extends TestCase {
    private ObservableValue pinAD1;
    private ObservableValue pinAD0;
 
-   private ObservableValue pinQs1;
-   private ObservableValue pinQs0;
+   // private ObservableValue pinQs1;
+   // private ObservableValue pinQs0;
    private ObservableValue pinS0;
    private ObservableValue pinS1;
    private ObservableValue pinS2;
-   private ObservableValue pinLock;
-   private ObservableValue pinRqGt1;
-   private ObservableValue pinRqGt0;
-   private ObservableValue pinRd;
-   private ObservableValue pinSs0;
+   // private ObservableValue pinLock;
+   // private ObservableValue pinRqGt1;
+   // private ObservableValue pinRqGt0;
+   // private ObservableValue pinRd;
+   // private ObservableValue pinSs0;
 
    private ObservableValue pinA19;
    private ObservableValue pinA18;
@@ -82,16 +82,16 @@ public class i8088CoreTests extends TestCase {
       pinAD2 = i8088Comp.getOutputs().get(17);
       pinAD1 = i8088Comp.getOutputs().get(18);
       pinAD0 = i8088Comp.getOutputs().get(19);
-      pinQs1 = i8088Comp.getOutputs().get(20);
-      pinQs0 = i8088Comp.getOutputs().get(21);
+      // pinQs1 = i8088Comp.getOutputs().get(20);
+      // pinQs0 = i8088Comp.getOutputs().get(21);
       pinS2 = i8088Comp.getOutputs().get(22);
       pinS1 = i8088Comp.getOutputs().get(23);
       pinS0 = i8088Comp.getOutputs().get(24);
-      pinLock = i8088Comp.getOutputs().get(25);
-      pinRqGt1 = i8088Comp.getOutputs().get(26);
-      pinRqGt0 = i8088Comp.getOutputs().get(27);
-      pinRd = i8088Comp.getOutputs().get(28);
-      pinSs0 = i8088Comp.getOutputs().get(29);
+      // pinLock = i8088Comp.getOutputs().get(25);
+      // pinRqGt1 = i8088Comp.getOutputs().get(26);
+      // pinRqGt0 = i8088Comp.getOutputs().get(27);
+      // pinRd = i8088Comp.getOutputs().get(28);
+      // pinSs0 = i8088Comp.getOutputs().get(29);
 
       model.init();
       return model;
@@ -109,14 +109,20 @@ public class i8088CoreTests extends TestCase {
 
       pinRESET.setValue(LOW);
 
-      executeClockCycle(model, 7);
+      executeClockCycle(model, 107);
 
       // Assert:
-      assertEquals("S2", HIGH, pinS2.getValue());
-      assertEquals("S1", HIGH, pinS2.getValue());
+      assertEquals("S2", HIGH, pinS0.getValue());
+      assertEquals("S1", HIGH, pinS1.getValue());
       assertEquals("S1", HIGH, pinS2.getValue());
 
       assertEquals("address", 0xFFFF0, addrBusValue());
+
+      try {
+         Thread.sleep(5000);
+      } catch (InterruptedException e) {
+         e.printStackTrace();
+      }
    }
 
    private void executeClockCycle(Model model, int count) {

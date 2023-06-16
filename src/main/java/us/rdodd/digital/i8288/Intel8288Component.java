@@ -12,7 +12,9 @@ public class Intel8288Component extends Node implements Element {
    /**
     * The description of the new component
     */
-   public static final ElementTypeDescription DESCRIPTION = new ElementTypeDescription(Intel8288Component.class,
+   public static final ElementTypeDescription DESCRIPTION = new ElementTypeDescription(
+         "Intel-8288",
+         Intel8288Component.class,
          new PinInfo("IOB", "Input/Output Bus Mode", Direction.input).setPinNumber("1"),
          new PinInfo("~AEN", "Address Enable", Direction.input).setPinNumber("6"),
          new PinInfo("CEN", "Command Enable", Direction.input).setPinNumber("16"),

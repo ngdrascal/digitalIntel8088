@@ -5,6 +5,7 @@ import de.neemann.digital.draw.library.ComponentSource;
 import de.neemann.digital.draw.library.ElementLibrary;
 import de.neemann.digital.draw.library.InvalidNodeException;
 import de.neemann.digital.gui.Main;
+import us.rdodd.digital.i8288.Intel8288Component;
 
 /**
  * Adds some components to Digital
@@ -21,7 +22,8 @@ public class Intel8088ComponentSource implements ComponentSource {
    public void registerComponents(ComponentManager manager) throws InvalidNodeException {
 
       // add a component and use the default shape
-      manager.addComponent("user contributed", Intel8088Component.DESCRIPTION);
+      manager.addComponent("Intel 8088", Intel8088Component.DESCRIPTION);
+      manager.addComponent("Intel 8088", Intel8288Component.DESCRIPTION);
    }
 
    /**

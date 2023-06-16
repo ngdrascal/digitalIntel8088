@@ -3,9 +3,9 @@ package us.rdodd.digital.i8088;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Intel8088Core {
-   private final byte LOW = 0;
-   private final byte HIGH = 1;
+public class Intel8088Core implements Runnable {
+   // private final byte LOW = 0;
+   // private final byte HIGH = 1;
 
    // --------------------------------------------------------------------------------------------------
    // --------------------------------------------------------------------------------------------------
@@ -108,7 +108,7 @@ public class Intel8088Core {
       this.pins = pins;
 
       // _logger = LoggerFactory.getLogger("cpu");
-      _instLogger = LoggerFactory.getLogger("cpu.instruction");
+      _instLogger = LoggerFactory.getLogger("cpu.instr");
 
       pins.setBusStatusPins(BusStatus.Pass);
    }
@@ -571,51 +571,7 @@ public class Intel8088Core {
    //
    // --------------------------------------------------------------------------------------------------
    // --------------------------------------------------------------------------------------------------
-
-   // private void ResetSequence() {
-   //    _logger.trace("--> Reset sequence");
-
-   //    // Stay here until RESET is de-asserted
-   //    while (pins.getResetPin() != 0) {
-   //       _clock.WaitForRisingEdge();
-   //       _clock.WaitForFallingEdge();
-   //    }
-
-   //    _clock.WaitForFallingEdge(); // Wait 7 clocks total before beginning to fetch instructions
-   //    _clock.WaitForFallingEdge();
-   //    _clock.WaitForFallingEdge();
-
-   //    pins.setBusStatusPins(BusStatus.Pass);
-
-   //    _clock.WaitForFallingEdge();
-   //    _clock.WaitForFallingEdge();
-   //    _clock.WaitForFallingEdge();
-   //    _clock.WaitForFallingEdge();
-   //    _clock.WaitForFallingEdge();
-   //    _clock.WaitForFallingEdge();
-   //    _clock.WaitForFallingEdge();
-
-   //    _nmiLatched.Clear(); // Debounce NMI
-
-   //    _clock.setClockCounter(10); // Debounce prefixes and cycle counter
-   //    _lastInstrSetPrefix = false;
-   //    _pauseInterrupts = false;
-
-   //    _registers.Flags = 0x0000; // Reset registers
-   //    _registers.ES = 0;
-   //    _registers.SS = 0;
-   //    _registers.DS = 0;
-   //    _registers.CS = 0xFFFF;
-   //    _registers.IP = 0;
-
-   //    _pfqInAddress = 0;
-   //    prefetch_queue_count = 0;
-
-   //    _clock.WaitForFallingEdge();
-
-   //    _logger.trace("<-- Reset sequence");
-   // }
-
+   
    // ------------------------------------------------------
    // Displacement and sign helpers
    // ------------------------------------------------------
@@ -992,7 +948,7 @@ public class Intel8088Core {
       _clock.incClockCounter((byte) 71);
 
       int pushAddr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     pushing return addr: 0x{0:X5}", pushAddr);
+      _instLogger.debug(String.format("     pushing return addr: 0x%05X", pushAddr));
 
       // Push the Flags and set bits [15:12] to F like 8088 does.
       Push((int) (_registers.Flags | 0xF000));
@@ -1022,7 +978,7 @@ public class Intel8088Core {
       _registers.CS = new_cs;
 
       int popAddr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     interrupt addr: 0x{0:X5}", popAddr);
+      _instLogger.debug(String.format("     interrupt addr: 0x%05X", popAddr));
 
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
@@ -1282,7 +1238,7 @@ public class Intel8088Core {
       _registers.SP -= 2;
 
       int addr = (_registers.SS << 4) + _registers.SP;
-      _instLogger.trace("     pushing to {0:X5}:{1:X4}", addr, localData);
+      _instLogger.trace(String.format("     pushing to %05X:%04X", addr, localData));
 
       // Biu_Operation(BiuOperations.MemWriteWord, SEGMENT_OVERRIDABLE_FALSE,
       // SEGMENT_SS, _registers.SP, localData);
@@ -1402,7 +1358,7 @@ public class Intel8088Core {
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_SS, _registers.SP, 0x00);
       int localData = _biu.readMemoryWord(SegmentOverridableFalse, SegmentRegs.SS, _registers.SP);
       int addr = (_registers.SS << 4) + _registers.SP;
-      _instLogger.trace("     popping from {0:X5}:{1:X4}", addr, localData);
+      _instLogger.trace(String.format("     popping from %05X:%04X", addr, localData));
       _registers.SP += 2;
       return localData;
    }
@@ -1649,7 +1605,7 @@ public class Intel8088Core {
       _registers.IP += localDisplacement;
 
       int addr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     jmp rel-8 offset: 0x{0:X2} to addr: 0x{1:X5}", localDisplacement, addr);
+      _instLogger.debug(String.format("     jmp rel-8 offset: 0x%02X to addr: 0x%05X", localDisplacement, addr));
 
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
@@ -1661,7 +1617,7 @@ public class Intel8088Core {
       _registers.IP += localDisplacement;
 
       int addr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     jmp rel-16 offset: 0x{0:X4} to addr: 0x{1:X5}", localDisplacement, addr);
+      _instLogger.debug(String.format("     jmp rel-16 offset: 0x%04X to addr: 0x%05X", localDisplacement, addr));
 
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
@@ -1676,7 +1632,7 @@ public class Intel8088Core {
       _registers.IP = localNewIp;
 
       int addr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     jmp to addr: 0x{1:X5}", addr);
+      _instLogger.debug(String.format("     jmp to addr: 0x%05X", addr));
 
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
@@ -1902,7 +1858,7 @@ public class Intel8088Core {
       _pfqInAddress = _registers.IP;
 
       int addr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     return to addr: 0x{1:X5}", addr);
+      _instLogger.debug(String.format("     return to addr: 0x%05X", addr));
 
       prefetch_queue_count = 0;
    }
@@ -1916,7 +1872,7 @@ public class Intel8088Core {
       _registers.CS = Pop();
 
       int addr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     return to addr: 0x{1:X5}", addr);
+      _instLogger.debug(String.format("     return to addr: 0x%05X", addr));
 
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
@@ -1932,7 +1888,7 @@ public class Intel8088Core {
       _registers.IP = tempIp;
 
       int addr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     return to addr: 0x{1:X5}", addr);
+      _instLogger.debug(String.format("     return to addr: 0x%05X", addr));
 
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
@@ -1950,7 +1906,7 @@ public class Intel8088Core {
       _registers.CS = newCs;
 
       int addr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     return to addr: 0x{1:X5}", addr);
+      _instLogger.debug(String.format("     return to addr: 0x%05X", addr));
 
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
@@ -1965,7 +1921,7 @@ public class Intel8088Core {
       _registers.CS = Pop();
 
       int retAddr = (_registers.CS << 4) + _registers.IP;
-      _instLogger.debug("     return to addr: 0x{0:X5}", retAddr);
+      _instLogger.debug(String.format("     return to addr: 0x%05X", retAddr));
 
       _registers.Flags = (int) (0x0FD5 & Pop());
 
@@ -5095,10 +5051,10 @@ public class Intel8088Core {
       _opCodeFirstByte = PfqFetchByte();
 
       _instLogger.info("========================================");
-      _instLogger.info("--> {0}(0x{1:X2}) {2}", "ExecuteNewInstr", _opCodeFirstByte,
-            _opNames[_opCodeFirstByte]);
+      _instLogger.info(String.format("--> %s(0x%02X) %s", "ExecuteNewInstr", Byte.toUnsignedInt(_opCodeFirstByte),
+            _opNames[Byte.toUnsignedInt(_opCodeFirstByte)]));
 
-      switch (_opCodeFirstByte) {
+      switch (Byte.toUnsignedInt(_opCodeFirstByte)) {
          case (byte) 0x00:
             OpCode_0x00();
             break;
@@ -5869,177 +5825,181 @@ public class Intel8088Core {
             break;
       }
 
-      _instLogger.info("<-- {0}()", "ExecuteNewInstr");
+      _instLogger.info(String.format("<-- %s()", "ExecuteNewInstr"));
       _instLogger.info("----------------------------------------");
+   }
+
+   private void ResetSequence() {
+      _instLogger.trace("--> Reset sequence");
+
+      // Stay here until RESET is de-asserted
+      while (pins.getResetPin() != 0) {
+         _clock.waitForRisingEdge();
+         _clock.waitForFallingEdge();
+      }
+
+      _clock.waitForFallingEdge(); // Wait 7 clocks total before beginning to fetch instructions
+      _clock.waitForFallingEdge();
+      _clock.waitForFallingEdge();
+
+      pins.setBusStatusPins(BusStatus.Pass);
+
+      _clock.waitForFallingEdge();
+      _clock.waitForFallingEdge();
+      _clock.waitForFallingEdge();
+      _clock.waitForFallingEdge();
+      _clock.waitForFallingEdge();
+      _clock.waitForFallingEdge();
+      _clock.waitForFallingEdge();
+
+      _nmiLatched.Clear(); // Debounce NMI
+
+      _clock.setClockCounter(10); // Debounce prefixes and cycle counter
+      _lastInstrSetPrefix = false;
+      _pauseInterrupts = false;
+
+      _registers.Flags = 0x0000; // Reset registers
+      _registers.ES = 0;
+      _registers.SS = 0;
+      _registers.DS = 0;
+      _registers.CS = 0xFFFF;
+      _registers.IP = 0;
+
+      _pfqInAddress = 0;
+      prefetch_queue_count = 0;
+
+      _clock.waitForFallingEdge();
+
+      _instLogger.trace("<-- Reset sequence");
    }
 
    // -------------------------------------------------
    // Main loop
    // -------------------------------------------------
-   // public Task loop(CancellationToken token)
-   // @Override
-   // private void run() {
-   //    _instLogger.trace("---> Main loop");
+   @Override
+   public void run() {
+      _instLogger.trace("---> Main loop");
 
-   //    for (int i = 0; i <= 32; i++) {
-   //       _clock.WaitForFallingEdge();
-   //    }
+      // for (int i = 0; i <= 32; i++) {
+      //    _clock.waitForFallingEdge();
+      // }
 
-   //    _pfqInAddress = _registers.IP;
-   //    prefetch_queue_count = 0;
+      _clock.waitForFallingEdge();
 
-   //    ResetSequence();
+      _pfqInAddress = _registers.IP;
+      prefetch_queue_count = 0;
 
-   //    while (true) {
-   //       // clockCounter = 0;
-   //       if (_deviceAdapter.getResetPin() != 0)
-   //          ResetSequence();
+      ResetSequence();
 
-   //       // Wait for cycle counter to expire before processing traps or next instruction
-   //       if (_clock.getClockCounter() > 0) {
-   //          _clock.WaitForFallingEdge();
-   //       }
+      while (true) {
+         // clockCounter = 0;
+         if (pins.getResetPin() != 0)
+            ResetSequence();
 
-   //       // Don't poll for interrupts between a Prefixes and instructions
-   //       if (_clock.getClockCounter() == 0 && !_pauseInterrupts) {
-   //          if (_nmiLatched.IsSet()) {
-   //             NmiHandler();
-   //          } else if (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0) {
-   //             IntrHandler();
-   //          } else if (Flag_t() != 0) {
-   //             TrapHandler();
-   //          }
-   //       }
+         // Wait for cycle counter to expire before processing traps or next instruction
+         if (_clock.getClockCounter() > 0) {
+            _clock.waitForFallingEdge();
+         }
 
-   //       // Process new instruction when previous instruction's cycle counter has expired
-   //       // Debounce prefixes after a non-prefix instruction is executed
-   //       if (_clock.getClockCounter() == 0) {
-   //          _lastInstrSetPrefix = false;
-   //          _pauseInterrupts = false;
-   //          ExecuteNewInstr();
-   //          // clockCounter=0;
-   //          if (_lastInstrSetPrefix == false)
-   //             _biu.setPrefixFlags((byte) 0x00);
-   //       }
+         // Don't poll for interrupts between a Prefixes and instructions
+         if (_clock.getClockCounter() == 0 && !_pauseInterrupts) {
+            if (_nmiLatched.IsSet()) {
+               NmiHandler();
+            } else if (pins.getIntrPin() != 0 && Flag_i() != 0) {
+               IntrHandler();
+            } else if (Flag_t() != 0) {
+               TrapHandler();
+            }
+         }
 
-   //       // Fill prefetch queue between instructions
-   //       if (prefetch_queue_count < 4) {
-   //          PfqAddByte();
-   //       }
-   //    }
-   // }
+         // Process new instruction when previous instruction's cycle counter has expired
+         // Debounce prefixes after a non-prefix instruction is executed
+         if (_clock.getClockCounter() == 0) {
+            _lastInstrSetPrefix = false;
+            _pauseInterrupts = false;
+            ExecuteNewInstr();
+            // clockCounter=0;
+            if (_lastInstrSetPrefix == false)
+               _biu.setPrefixFlags((byte) 0x00);
+         }
 
-   private enum States {
-      POWERUP, RESET, RUN, HALT
+         // Fill prefetch queue between instructions
+         if (prefetch_queue_count < 4) {
+            PfqAddByte();
+         }
+      }
    }
 
-   private States state = States.POWERUP;
+   /////////////////////////////////////////////////////////////////////////////
+   // alternative implementation
+   /////////////////////////////////////////////////////////////////////////////
+
+   // private enum States {
+   //    POWERUP, RESET, RUN, HALT
+   // }
+
+   // private States state = States.POWERUP;
 
    // RESET: Cases the processor to immediately terminate its present activity. The signal
    // must transition LOW to HIGH and remain active HIGH for at least four clock cycles. 
    // It restarts execution, as described in the instruction set description, when RESET
    // returns LOW. RESET is internally synchronized
-   private byte lstResetPin = 0;
-   private int resetClkCnt;
-   private int delayClkCnt;
+   // private byte lstResetPin = 0;
+   // private int resetClkCnt;
+   // private int delayClkCnt;
 
-   public void step() {
-      _instLogger.trace("---> step()");
+   // private void step() {
+   //    byte curResetPin = pins.getResetPin();
+   //    if (lstResetPin == LOW && curResetPin == HIGH) {
+   //       resetClkCnt = 1;
+   //    }
+   //    if (lstResetPin == HIGH && curResetPin == HIGH) {
+   //       // the RESET pin must be held high for at least 4 clock cycles
+   //       if (resetClkCnt < 4)
+   //          resetClkCnt++;
+   //    } else if (lstResetPin == HIGH && curResetPin == LOW && resetClkCnt >= 4) {
+   //       // it takes 7 clock cycles to reset the system
+   //       delayClkCnt = 7;
+   //       state = States.RESET;
+   //    }
+   //    lstResetPin = curResetPin;
 
-      byte curResetPin = pins.getResetPin();
-      if (lstResetPin == LOW && curResetPin == HIGH) {
-         resetClkCnt = 1;
-      }
-      if (lstResetPin == HIGH && curResetPin == HIGH) {
-          // the RESET pin must be held high for at least 4 clock cycles
-         if (resetClkCnt < 4)
-            resetClkCnt++;
-      } else if (lstResetPin == HIGH && curResetPin == LOW && resetClkCnt >= 4) {
-         // it takes 7 clock cycles to reset the system
-         delayClkCnt = 7;
-         state = States.RESET;
-      }
-      lstResetPin = curResetPin;
+   //    switch (state) {
+   //       case POWERUP:
+   //          break;
+   //       case RESET:
+   //          if (delayClkCnt > 0)
+   //             delayClkCnt--;
+   //          else {
+   //             pins.setBusStatusPins(BusStatus.Pass);
 
-      switch (state) {
-         case POWERUP:
-            break;
-         case RESET:
-            if (delayClkCnt > 0)
-               delayClkCnt--;
-            else {
-               pins.setBusStatusPins(BusStatus.Pass);
+   //             _nmiLatched.Clear(); // Debounce NMI
 
-               _nmiLatched.Clear(); // Debounce NMI
+   //             _clock.setClockCounter(10); // Debounce prefixes and cycle counter
+   //             _lastInstrSetPrefix = false;
+   //             _pauseInterrupts = false;
 
-               _clock.setClockCounter(10); // Debounce prefixes and cycle counter
-               _lastInstrSetPrefix = false;
-               _pauseInterrupts = false;
+   //             // Reset registers
+   //             _registers.Flags = 0x0000;
+   //             _registers.ES = 0;
+   //             _registers.SS = 0;
+   //             _registers.DS = 0;
+   //             _registers.CS = 0xFFFF;
+   //             _registers.IP = 0;
 
-               // Reset registers
-               _registers.Flags = 0x0000;
-               _registers.ES = 0;
-               _registers.SS = 0;
-               _registers.DS = 0;
-               _registers.CS = 0xFFFF;
-               _registers.IP = 0;
+   //             _pfqInAddress = 0;
+   //             prefetch_queue_count = 0;
 
-               _pfqInAddress = 0;
-               prefetch_queue_count = 0;
-
-               pins.setAddrBusPins(0xFFFF0);
-               state = States.RUN;
-            }
-            break;
-         case RUN:
-            break;
-         case HALT:
-            break;
-         default:
-            break;
-      }
-      // _pfqInAddress = _registers.IP;
-      // prefetch_queue_count = 0;
-
-      // ResetSequence();
-
-      // while (true) {
-      //    // clockCounter = 0;
-      //    if (_deviceAdapter.getResetPin() != 0)
-      //       ResetSequence();
-
-      //    // Wait for cycle counter to expire before processing traps or next instruction
-      //    if (_clock.getClockCounter() > 0) {
-      //       _clock.WaitForFallingEdge();
-      //    }
-
-      //    // Don't poll for interrupts between a Prefixes and instructions
-      //    if (_clock.getClockCounter() == 0 && !_pauseInterrupts) {
-      //       if (_nmiLatched.IsSet()) {
-      //          NmiHandler();
-      //       } else if (_deviceAdapter.getIntrPin() != 0 && Flag_i() != 0) {
-      //          IntrHandler();
-      //       } else if (Flag_t() != 0) {
-      //          TrapHandler();
-      //       }
-      //    }
-
-      //    // Process new instruction when previous instruction's cycle counter has expired
-      //    // Debounce prefixes after a non-prefix instruction is executed
-      //    if (_clock.getClockCounter() == 0) {
-      //       _lastInstrSetPrefix = false;
-      //       _pauseInterrupts = false;
-      //       ExecuteNewInstr();
-      //       // clockCounter=0;
-      //       if (_lastInstrSetPrefix == false)
-      //          _biu.setPrefixFlags((byte) 0x00);
-      //    }
-
-      //    // Fill prefetch queue between instructions
-      //    if (prefetch_queue_count < 4) {
-      //       PfqAddByte();
-      //    }
-      // }
-
-   }
+   //             pins.setAddrBusPins(0xFFFF0);
+   //             state = States.RUN;
+   //          }
+   //          break;
+   //       case RUN:
+   //          break;
+   //       case HALT:
+   //          break;
+   //       default:
+   //          break;
+   //    }
+   // }
 }

@@ -21,7 +21,7 @@ package us.rdodd.digital.i8288;
        public void registerComponents(ComponentManager manager) throws InvalidNodeException {
    
            // add a component and use the default shape
-           manager.addComponent("user contributed", Intel8288Component.DESCRIPTION);
+           manager.addComponent("Intel 8088", Intel8288Component.DESCRIPTION);
        }
    
        /**

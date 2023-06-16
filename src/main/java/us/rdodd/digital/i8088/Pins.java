@@ -1,10 +1,14 @@
 package us.rdodd.digital.i8088;
 
+// import java.util.concurrent.BlockingQueue;
+// import java.util.concurrent.LinkedBlockingQueue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Pins implements PinsInternalIntf, PinsExternalIntf {
    private byte[] pinValues;
+   // private BlockingQueue<Byte> queue;
    private final Logger pinLogger;
    private final Logger nmiLogger;
 
@@ -33,6 +37,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
       for (int i = 0; i < 40; i++) {
          pinValues[i] = 0;
       }
+
+      // queue = new LinkedBlockingQueue<>(2);
+
       pinLogger = LoggerFactory.getLogger("cpu.pins");
       nmiLogger = LoggerFactory.getLogger("cpu.pins.nmi");
    }
@@ -123,8 +130,15 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getClkPin() {
-      byte result = readPin(PinMap.CLK);
-      return result;
+      return readPin(PinMap.CLK);
+
+      // byte result = 0;
+      // try {
+      //    result = queue.take();
+      // } catch (InterruptedException e) {
+      //    e.printStackTrace();
+      // }
+      // return result;
    }
 
    @Override
@@ -154,196 +168,202 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getA14() {
-      return pinValues[PinMap.A14];
+      return readPin(PinMap.A14);
    }
 
    @Override
    public byte getA13() {
-      return pinValues[PinMap.A13];
+      return readPin(PinMap.A13);
    }
 
    @Override
    public byte getA12() {
-      return pinValues[PinMap.A12];
+      return readPin(PinMap.A12);
    }
 
    @Override
    public byte getA11() {
-      return pinValues[PinMap.A11];
+      return readPin(PinMap.A11);
    }
 
    @Override
    public byte getA10() {
-      return pinValues[PinMap.A10];
+      return readPin(PinMap.A10);
    }
 
    @Override
    public byte getA9() {
-      return pinValues[PinMap.A9];
+      return readPin(PinMap.A9);
    }
 
    @Override
    public byte getA8() {
-      return pinValues[PinMap.A8];
+      return readPin(PinMap.A8);
    }
 
    @Override
    public byte getAD7() {
-      return pinValues[PinMap.AD7];
+      return readPin(PinMap.AD7);
    }
 
    @Override
    public byte getAD6() {
-      return pinValues[PinMap.AD6];
+      return readPin(PinMap.AD6);
    }
 
    @Override
    public byte getAD5() {
-      return pinValues[PinMap.AD5];
+      return readPin(PinMap.AD5);
    }
 
    @Override
    public byte getAD4() {
-      return pinValues[PinMap.AD4];
+      return readPin(PinMap.AD4);
    }
 
    @Override
    public byte getAD3() {
-      return pinValues[PinMap.AD3];
+      return readPin(PinMap.AD3);
    }
 
    @Override
    public byte getAD2() {
-      return pinValues[PinMap.AD2];
+      return readPin(PinMap.AD2);
    }
 
    @Override
    public byte getAD1() {
-      return pinValues[PinMap.AD1];
+      return readPin(PinMap.AD1);
    }
 
    @Override
    public byte getAD0() {
-      return pinValues[PinMap.AD0];
+      return readPin(PinMap.AD0);
    }
 
    @Override
    public void setNMI(byte value) {
-      pinValues[PinMap.NMI] = value;
+      writePin(PinMap.NMI, value);
    }
 
    @Override
    public void setINTR(byte value) {
-      pinValues[PinMap.INTR] = value;
+      writePin(PinMap.INTR, value);
    }
 
    @Override
    public void setCLK(byte value) {
-      pinValues[PinMap.CLK] = value;
+      writePin(PinMap.CLK, value);
+      
+      // try {
+      //    queue.put(value);
+      // } catch (InterruptedException e) {
+      //    e.printStackTrace();
+      // }
    }
 
    @Override
    public void setRESET(byte value) {
-      pinValues[PinMap.RESET] = value;
+      writePin(PinMap.RESET, value);
    }
 
    @Override
    public void setREADY(byte value) {
-      pinValues[PinMap.READY] = value;
+      writePin(PinMap.READY, value);
    }
 
    @Override
    public void setTEST(byte value) {
-      pinValues[PinMap.TEST] = value;
+      writePin(PinMap.TEST, value);
    }
 
    @Override
    public byte getQS1() {
-      return pinValues[PinMap.QS1];
+      return readPin(PinMap.QS1);
    }
 
    @Override
    public byte getQS0() {
-      return pinValues[PinMap.QS0];
+      return readPin(PinMap.QS0);
    }
 
    @Override
    public byte getS0() {
-      return pinValues[PinMap.S0];
+      return readPin(PinMap.S0);
    }
 
    @Override
    public byte getS1() {
-      return pinValues[PinMap.S1];
+      return readPin(PinMap.S1);
    }
 
    @Override
    public byte getS2() {
-      return pinValues[PinMap.S2];
+      return readPin(PinMap.S2);
    }
 
    @Override
    public byte getLOCK() {
-      return pinValues[PinMap.LOCK];
+      return readPin(PinMap.LOCK);
    }
 
    @Override
    public byte getRQGT1() {
-      return pinValues[PinMap.RQGT1];
+      return readPin(PinMap.RQGT1);
    }
 
    @Override
    public void setRQGT1(byte value) {
-      pinValues[PinMap.RQGT1] = value;
+      writePin(PinMap.RQGT1, value);
    }
 
    @Override
    public byte getRQGT0() {
-      return pinValues[PinMap.RQGT0];
+      return readPin(PinMap.RQGT0);
    }
 
    @Override
    public void setRQGT0(byte value) {
-      pinValues[PinMap.RQGT0] = value;
+      writePin(PinMap.RQGT0, value);
    }
 
    @Override
    public byte getRD() {
-      return pinValues[PinMap.RD];
+      return readPin(PinMap.RD);
    }
 
    @Override
    public void setMNMX(byte value) {
-      pinValues[PinMap.MNMX] = value;
+      writePin(PinMap.MNMX, value);
    }
 
    @Override
    public byte getSS0() {
-      return pinValues[PinMap.SS0];
+      return readPin(PinMap.SS0);
    }
 
    @Override
    public byte getA19() {
-      return pinValues[PinMap.A19];
+      return readPin(PinMap.A19);
    }
 
    @Override
    public byte getA18() {
-      return pinValues[PinMap.A18];
+      return readPin(PinMap.A18);
    }
 
    @Override
    public byte getA17() {
-      return pinValues[PinMap.A17];
+      return readPin(PinMap.A17);
    }
 
    @Override
    public byte getA16() {
-      return pinValues[PinMap.A16];
+      return readPin(PinMap.A16);
    }
 
    @Override
    public byte getA15() {
-      return pinValues[PinMap.A15];
+      return readPin(PinMap.A15);
    }
 }
