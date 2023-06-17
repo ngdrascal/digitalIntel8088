@@ -59,7 +59,7 @@ public class Clock implements ClockIntf {
          // Store slightly-delayed version of GPIO6 in a global register
          // GPIO6_raw_data = _deviceAdapter.GPIO6_DR;
          // direct_nmi = (GPIO6_raw_data & 0x00010000);
-         currentNmi = pins.getNmiPin();
+         currentNmi = pins.getNMI();
 
          if (actionQueue.isEmpty())
             return 0;
@@ -126,6 +126,6 @@ public class Clock implements ClockIntf {
       // Store slightly-delayed version of GPIO6 in a global register
       // GPIO6_raw_data = _deviceAdapter.GPIO6_DR;
       // direct_nmi = (GPIO6_raw_data & 0x00010000);
-      currentNmi = pins.getNmiPin();
+      currentNmi = pins.getNMI();
    }
 }

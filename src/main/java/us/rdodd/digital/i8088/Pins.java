@@ -103,7 +103,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    }
 
    @Override
-   public byte getIntrPin() {
+   public byte getINTR() {
       byte result = readPin(PinMap.INTR);
 
       pinLogger.trace("{0}.get(): {1}", "getIntrPin", result);
@@ -112,8 +112,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    }
 
    @Override
-   public byte getNmiPin() {
-
+   public byte getNMI() {
       byte result = readPin(PinMap.NMI);
 
       nmiLogger.trace("{0}.get(): {1}", "getNmiPin", result);
@@ -126,6 +125,15 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
       pinLogger.trace("{0}.set({1})", "LockPin", value);
 
       writePin(PinMap.LOCK, value);
+   }
+
+   @Override
+   public void setQueueStatusPins(byte value) {
+      if (value < 0 || value > 3)
+         throw new IllegalArgumentException("value out of range 0..3");
+
+      writePin(PinMap.QS1, value);
+      writePin(PinMap.QS1, value);
    }
 
    @Override
@@ -207,8 +215,18 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    }
 
    @Override
+   public void setAD7(byte value) {
+      writePin(PinMap.AD7, value);
+   }
+
+   @Override
    public byte getAD6() {
       return readPin(PinMap.AD6);
+   }
+
+   @Override
+   public void setAD6(byte value) {
+      writePin(PinMap.AD6, value);
    }
 
    @Override
@@ -217,8 +235,18 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    }
 
    @Override
+   public void setAD5(byte value) {
+      writePin(PinMap.AD5, value);
+   }
+
+   @Override
    public byte getAD4() {
       return readPin(PinMap.AD4);
+   }
+
+   @Override
+   public void setAD4(byte value) {
+      writePin(PinMap.AD4, value);
    }
 
    @Override
@@ -227,8 +255,18 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    }
 
    @Override
+   public void setAD3(byte value) {
+      writePin(PinMap.AD3, value);
+   }
+
+   @Override
    public byte getAD2() {
       return readPin(PinMap.AD2);
+   }
+
+   @Override
+   public void setAD2(byte value) {
+      writePin(PinMap.AD2, value);
    }
 
    @Override
@@ -237,8 +275,18 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    }
 
    @Override
+   public void setAD1(byte value) {
+      writePin(PinMap.AD1, value);
+   }
+
+   @Override
    public byte getAD0() {
       return readPin(PinMap.AD0);
+   }
+
+   @Override
+   public void setAD0(byte value) {
+      writePin(PinMap.AD0, value);
    }
 
    @Override
@@ -254,7 +302,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    @Override
    public void setCLK(byte value) {
       writePin(PinMap.CLK, value);
-      
+
       // try {
       //    queue.put(value);
       // } catch (InterruptedException e) {
@@ -340,6 +388,11 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    @Override
    public byte getSS0() {
       return readPin(PinMap.SS0);
+   }
+
+   @Override
+   public void setSS0Pin(byte value){
+      writePin(PinMap.SS0, value);
    }
 
    @Override

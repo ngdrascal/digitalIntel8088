@@ -4,8 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Intel8088Core implements Runnable {
-   // private final byte LOW = 0;
-   // private final byte HIGH = 1;
+   private final byte LOW = 0;
+   private final byte HIGH = 1;
 
    // --------------------------------------------------------------------------------------------------
    // --------------------------------------------------------------------------------------------------
@@ -89,7 +89,7 @@ public class Intel8088Core implements Runnable {
          4, 0, 0, 4, 4, 0, 4, 0, 0, 4, 4, 0, 0, 4, 0, 4, 4, 0, 4, 0, 0, 4, 0, 4, 4, 0, 0, 4, 4, 0, 4, 0, 0, 4
    };
 
-   private ClockIntf _clock;
+   private ClockIntf clock;
    private Registers _registers;
    private BusInterfaceUnitIntf _biu;
    private BitLatchIntf _nmiLatched;
@@ -101,10 +101,10 @@ public class Intel8088Core implements Runnable {
          BusInterfaceUnitIntf biu,
          BitLatchIntf nmiLatched,
          PinsInternalIntf pins) {
-      _clock = clock;
-      _registers = registers;
-      _biu = biu;
-      _nmiLatched = nmiLatched;
+      this.clock = clock;
+      this._registers = registers;
+      this._biu = biu;
+      this._nmiLatched = nmiLatched;
       this.pins = pins;
 
       // _logger = LoggerFactory.getLogger("cpu");
@@ -187,324 +187,6 @@ public class Intel8088Core implements Runnable {
    // {
    // return (byte)((prefixFlags & 0x80) == 0 ? 0 : 1);
    // }
-
-   /*
-    * //
-    * -----------------------------------------------------------------------------
-    * ---------------------
-    * //
-    * -----------------------------------------------------------------------------
-    * ---------------------
-    * //
-    * // Begin 8088 Bus Interface Unit
-    * //
-    * //
-    * -----------------------------------------------------------------------------
-    * ---------------------
-    * //
-    * -----------------------------------------------------------------------------
-    * ---------------------
-    * 
-    * // -------------------------------------------------
-    * // Wait for the CLK rising edge
-    * // -------------------------------------------------
-    * private void Wait_for_CLK_rising_edge()
-    * {
-    * // First ensure clock is at a low level
-    * while (_deviceAdapter.ClkPin != 0 && !_token.IsCancellationRequested) { }
-    * 
-    * // Then poll for the first instance where clock is not low
-    * do { } while (_deviceAdapter.ClkPin == 0 && !_token.IsCancellationRequested);
-    * }
-    * 
-    * // -------------------------------------------------
-    * // Wait for the CLK falling edge and sample signals
-    * // -------------------------------------------------
-    * private void _clock.WaitForFallingEdge()
-    * {
-    * if (clockCounter > 0)
-    * {
-    * // Count down clockCounter here to keep new opcodes from beginning yet
-    * allowing
-    * // prefetch queue to fill
-    * clockCounter--;
-    * }
-    * 
-    * if (nmi_d == 0 && direct_nmi != 0)
-    * {
-    * // Latch rising edge of NMI
-    * nmiLatched = true;
-    * }
-    * nmi_d = (int)direct_nmi;
-    * 
-    * // First ensure clock is at a high level
-    * while (_deviceAdapter.ClkPin == 0 && !_token.IsCancellationRequested) { }
-    * 
-    * // Then poll for the first instance where clock is not high
-    * do { } while (_deviceAdapter.ClkPin != 0 && !_token.IsCancellationRequested);
-    * 
-    * direct_nmi = _deviceAdapter.NmiPin;
-    * }
-    * 
-    * // -------------------------------------------------
-    * // Initiate a 8088 Bus Cycle
-    * // -------------------------------------------------
-    * private byte BIU_Bus_Cycle(BiuOperations biu_operation, uint localAddress,
-    * byte localData)
-    * {
-    * PrintBusRequest(localAddress, localData, biu_operation, _eaSegment);
-    * 
-    * var readCycle = biu_operation.IsReadCycle();
-    * 
-    * // For HALT, just drive the status pins on th e next rising edge of CLK, then
-    * exit
-    * if (biu_operation == BiuOperations.SendHalt)
-    * {
-    * Wait_for_CLK_rising_edge();
-    * 
-    * _deviceAdapter.BusStatusPins = BusStatus.Halt;
-    * 
-    * return 0xEE;
-    * }
-    * 
-    * //////////////////////////////////////////
-    * // Execute the 8088 Maximum Mode Bus Cycle
-    * //////////////////////////////////////////
-    * 
-    * // T0.5 Drive the status pins to begin the cycle on the rising edge of CLK
-    * //
-    * -----------------------------------------------------------------------------
-    * Wait_for_CLK_rising_edge();
-    * _clkLogger.LogTrace("----T0.5----");
-    * 
-    * _deviceAdapter.BusStatusPins = biu_operation.BusStatusOf();
-    * 
-    * // T1
-    * //
-    * -----------------------------------------------------------------------------
-    * _clock.WaitForFallingEdge();
-    * _clkLogger.LogTrace("----T1----");
-    * 
-    * _deviceAdapter.AddrBusPins = localAddress;
-    * 
-    * 
-    * // T2 - If a read cycle, disable the AD[7:0] buffer
-    * // If a write cycle, drive data onto the AD[7:0] pins
-    * //
-    * -----------------------------------------------------------------------------
-    * 
-    * _clock.WaitForFallingEdge();
-    * _clkLogger.LogTrace("----T2----");
-    * 
-    * // More likely to get POST error 101 with this code
-    * if (assert_lock == 1)
-    * {
-    * _deviceAdapter.LockPin = 0x0;
-    * assert_lock = 0;
-    * }
-    * else
-    * {
-    * _deviceAdapter.LockPin = 0x1;
-    * }
-    * 
-    * if (readCycle)
-    * _deviceAdapter.RdPin = 0;
-    * else
-    * _deviceAdapter.DataBusPins = localData;
-    * 
-    * _deviceAdapter.SegmentRegister = _eaSegment;
-    * 
-    * 
-    * // T3 - Sample the READY signal on the falling edge of CLK until it goes high
-    * // Then set the Status bits to Passive (b111)
-    * //
-    * -----------------------------------------------------------------------------
-    * 
-    * // Poll the slightly delayed sample of READY signal directly from the GPIO
-    * do
-    * {
-    * _clock.WaitForFallingEdge();
-    * _clkLogger.LogTrace("----T3----");
-    * }
-    * while (_deviceAdapter.ReadyPin == 0 && !_token.IsCancellationRequested);
-    * 
-    * _deviceAdapter.BusStatusPins = BusStatus.Pass;
-    * 
-    * 
-    * // T4 - Sample read data on the next falling edge of CLK
-    * //
-    * -----------------------------------------------------------------------------
-    * _clock.WaitForFallingEdge();
-    * _clkLogger.LogTrace("----T4----");
-    * 
-    * byte result;
-    * 
-    * if (!readCycle)
-    * {
-    * result = 0xEE;
-    * }
-    * else
-    * {
-    * var data = _deviceAdapter.DataBusPins;
-    * result = data;
-    * }
-    * 
-    * _deviceAdapter.RdPin = 1;
-    * 
-    * // _busLogger.LogTrace("<--- {0}(): {1:X2}", nameof(BIU_Bus_Cycle), result);
-    * return result;
-    * }
-    * 
-    * private void PrintBusRequest(uint addr, byte data, BiuOperations operation,
-    * byte segReg)
-    * {
-    * var status = operation switch
-    * {
-    * BiuOperations.InterruptAck => 'A',
-    * BiuOperations.IoReadByte => 'I',
-    * BiuOperations.IoReadWord => 'I',
-    * BiuOperations.IoWriteByte => '0',
-    * BiuOperations.IoWriteWord => '0',
-    * BiuOperations.SendHalt => 'H',
-    * BiuOperations.CodeReadByte => 'C',
-    * BiuOperations.MemReadByte => 'R',
-    * BiuOperations.MemReadWord => 'R',
-    * BiuOperations.MemWriteByte => 'W',
-    * BiuOperations.MemWriteWord => 'W',
-    * _ => throw new ArgumentOutOfRangeException(nameof(operation), operation,
-    * null)
-    * };
-    * 
-    * const char area = '-';
-    * string segRegStr;
-    * if (operation is BiuOperations.IoReadByte or BiuOperations.IoWriteByte or
-    * BiuOperations.IoReadWord or BiuOperations.IoWriteWord)
-    * {
-    * segRegStr = "--";
-    * } else
-    * {
-    * segRegStr = segReg switch
-    * {
-    * SEGMENT_CS => "CS",
-    * SEGMENT_DS => "DS",
-    * SEGMENT_ES => "ES",
-    * SEGMENT_SS => "SS",
-    * _ => "--"
-    * };
-    * }
-    * var dataStr = operation is BiuOperations.MemWriteByte or
-    * BiuOperations.MemWriteWord or
-    * BiuOperations.IoWriteByte or BiuOperations.IoWriteWord
-    * ? data.ToString("X2") : "--";
-    * 
-    * _busLogger.LogTrace("{0} {1} {2} {3:X5}:{4}", status, area, segRegStr, addr,
-    * dataStr);
-    * }
-    * 
-    * //
-    * -----------------------------------------------------------------------------
-    * ---------------------
-    * //
-    * -----------------------------------------------------------------------------
-    * ---------------------
-    * //
-    * // End 8088 Bus Interface Unit
-    * //
-    * //
-    * -----------------------------------------------------------------------------
-    * ---------------------
-    * //
-    * -----------------------------------------------------------------------------
-    * ---------------------
-    * 
-    * 
-    * // ------------------------------------------------------
-    * // Calculate full address allowing for segment override
-    * // ------------------------------------------------------
-    * private uint CalculateFullAddress(boolean useSegmentOverride, byte segment,
-    * int address)
-    * {
-    * uint biuFullAddress = 0;
-    * 
-    * var localSegmentOverride = (byte)(prefixFlags & 0xF0);
-    * 
-    * if (useSegmentOverride && localSegmentOverride != 0)
-    * {
-    * clockCounter = (byte)(clockCounter + 2); // Add two additional clocks for
-    * segment override
-    * biuFullAddress = localSegmentOverride switch
-    * {
-    * SEGMENT_ES => (uint)((_registers.ES << 4) + address),
-    * SEGMENT_SS => (uint)((_registers.SS << 4) + address),
-    * SEGMENT_DS => (uint)((_registers.DS << 4) + address),
-    * SEGMENT_CS => (uint)((_registers.CS << 4) + address),
-    * _ => biuFullAddress
-    * };
-    * }
-    * else
-    * {
-    * biuFullAddress = segment switch
-    * {
-    * SEGMENT_00 => address,
-    * SEGMENT_ES => (uint)((_registers.ES << 4) + address),
-    * SEGMENT_SS => (uint)((_registers.SS << 4) + address),
-    * SEGMENT_DS => (uint)((_registers.DS << 4) + address),
-    * SEGMENT_CS => (uint)((_registers.CS << 4) + address),
-    * _ => biuFullAddress
-    * };
-    * }
-    * 
-    * return biuFullAddress;
-    * }
-    * 
-    * // ------------------------------------------------------
-    * // Initiate Bus Interface cycles
-    * // ------------------------------------------------------
-    * private int Biu_Operation(BiuOperations biuOperation,
-    * boolean useSegmentOverride,
-    * int segment,
-    * int address,
-    * int writeData)
-    * {
-    * int readData;
-    * uint biuFullAddress;
-    * 
-    * if (biuOperation == BiuOperations.InterruptAck)
-    * {
-    * assert_lock = 1;
-    * _ = BIU_Bus_Cycle(biuOperation, 0x00000, 0x00);
-    * _clock.WaitForFallingEdge();
-    * _clock.WaitForFallingEdge();
-    * readData = BIU_Bus_Cycle(biuOperation, 0x00000, 0x00);
-    * }
-    * else if ((byte)biuOperation > 0x0F) // 16 bit operation?
-    * {
-    * // Word cycle
-    * biuFullAddress = CalculateFullAddress(useSegmentOverride, (byte)segment,
-    * address);
-    * var lowerByte = (byte)(0x00ff & writeData);
-    * var readDataLower = BIU_Bus_Cycle(biuOperation, biuFullAddress, lowerByte);
-    * 
-    * address++; // 16-bit value allows for wrapping within a segment
-    * 
-    * biuFullAddress = CalculateFullAddress(useSegmentOverride, (byte)segment,
-    * address);
-    * var upperByte = (byte)(writeData >> 8);
-    * var readDataUpper = BIU_Bus_Cycle(biuOperation, biuFullAddress, upperByte);
-    * 
-    * readData = (int)((readDataUpper << 8) | readDataLower);
-    * }
-    * else // 8 bit operation
-    * {
-    * biuFullAddress = CalculateFullAddress(useSegmentOverride, (byte)segment,
-    * address);
-    * readData = BIU_Bus_Cycle(biuOperation, biuFullAddress, (byte)(writeData &
-    * 0x00FF));
-    * }
-    * 
-    * return readData;
-    * }
-    */
 
    // ------------------------------------------------------
    // Add a byte to the prefetch queue
@@ -775,42 +457,42 @@ public class Intel8088Core implements Runnable {
             case 0x00:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.BX + _registers.SI);
-               _clock.incClockCounter((byte) 7);
+               clock.incClockCounter((byte) 7);
                break;
             case 0x01:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.BX + _registers.DI);
-               _clock.incClockCounter((byte) 8);
+               clock.incClockCounter((byte) 8);
                break;
             case 0x02:
                _eaSegment = SegmentRegs.SS;
                _eaAddress = (int) (_registers.BP + _registers.SI);
-               _clock.incClockCounter((byte) 8);
+               clock.incClockCounter((byte) 8);
                break;
             case 0x03:
                _eaSegment = SegmentRegs.SS;
                _eaAddress = (int) (_registers.BP + _registers.DI);
-               _clock.incClockCounter((byte) 7);
+               clock.incClockCounter((byte) 7);
                break;
             case 0x04:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = _registers.SI;
-               _clock.incClockCounter((byte) 5);
+               clock.incClockCounter((byte) 5);
                break;
             case 0x05:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = _registers.DI;
-               _clock.incClockCounter((byte) 5);
+               clock.incClockCounter((byte) 5);
                break;
             case 0x06:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = PfqFetchWord();
-               _clock.incClockCounter((byte) 6);
+               clock.incClockCounter((byte) 6);
                break;
             case 0x07:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = _registers.BX;
-               _clock.incClockCounter((byte) 5);
+               clock.incClockCounter((byte) 5);
                break;
          }
       } else if (_modField == 1) // Use R/M Table-2 with 8-bit displacement
@@ -819,42 +501,42 @@ public class Intel8088Core implements Runnable {
             case 0x00:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.BX + _registers.SI + SignExtendedByte(PfqFetchByte()));
-               _clock.incClockCounter((byte) 11);
+               clock.incClockCounter((byte) 11);
                break;
             case 0x01:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.BX + _registers.DI + SignExtendedByte(PfqFetchByte()));
-               _clock.incClockCounter((byte) 12);
+               clock.incClockCounter((byte) 12);
                break;
             case 0x02:
                _eaSegment = SegmentRegs.SS;
                _eaAddress = (int) (_registers.BP + _registers.SI + SignExtendedByte(PfqFetchByte()));
-               _clock.incClockCounter((byte) 12);
+               clock.incClockCounter((byte) 12);
                break;
             case 0x03:
                _eaSegment = SegmentRegs.SS;
                _eaAddress = (int) (_registers.BP + _registers.DI + SignExtendedByte(PfqFetchByte()));
-               _clock.incClockCounter((byte) 11);
+               clock.incClockCounter((byte) 11);
                break;
             case 0x04:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.SI + SignExtendedByte(PfqFetchByte()));
-               _clock.incClockCounter((byte) 9);
+               clock.incClockCounter((byte) 9);
                break;
             case 0x05:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.DI + SignExtendedByte(PfqFetchByte()));
-               _clock.incClockCounter((byte) 9);
+               clock.incClockCounter((byte) 9);
                break;
             case 0x06:
                _eaSegment = SegmentRegs.SS;
                _eaAddress = (int) (_registers.BP + SignExtendedByte(PfqFetchByte()));
-               _clock.incClockCounter((byte) 9);
+               clock.incClockCounter((byte) 9);
                break;
             case 0x07:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.BX + SignExtendedByte(PfqFetchByte()));
-               _clock.incClockCounter((byte) 9);
+               clock.incClockCounter((byte) 9);
                break;
          }
       } else if (_modField == 2) // Use R/M Table 2 with 16-bit displacement
@@ -863,42 +545,42 @@ public class Intel8088Core implements Runnable {
             case 0x00:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.BX + _registers.SI + PfqFetchWord());
-               _clock.incClockCounter((byte) 11);
+               clock.incClockCounter((byte) 11);
                break;
             case 0x01:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.BX + _registers.DI + PfqFetchWord());
-               _clock.incClockCounter((byte) 12);
+               clock.incClockCounter((byte) 12);
                break;
             case 0x02:
                _eaSegment = SegmentRegs.SS;
                _eaAddress = (int) (_registers.BP + _registers.SI + PfqFetchWord());
-               _clock.incClockCounter((byte) 12);
+               clock.incClockCounter((byte) 12);
                break;
             case 0x03:
                _eaSegment = SegmentRegs.SS;
                _eaAddress = (int) (_registers.BP + _registers.DI + PfqFetchWord());
-               _clock.incClockCounter((byte) 11);
+               clock.incClockCounter((byte) 11);
                break;
             case 0x04:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.SI + PfqFetchWord());
-               _clock.incClockCounter((byte) 9);
+               clock.incClockCounter((byte) 9);
                break;
             case 0x05:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.DI + PfqFetchWord());
-               _clock.incClockCounter((byte) 9);
+               clock.incClockCounter((byte) 9);
                break;
             case 0x06:
                _eaSegment = SegmentRegs.SS;
                _eaAddress = (int) (_registers.BP + PfqFetchWord());
-               _clock.incClockCounter((byte) 9);
+               clock.incClockCounter((byte) 9);
                break;
             case 0x07:
                _eaSegment = SegmentRegs.DS;
                _eaAddress = (int) (_registers.BX + PfqFetchWord());
-               _clock.incClockCounter((byte) 9);
+               clock.incClockCounter((byte) 9);
                break;
          }
       }
@@ -945,7 +627,7 @@ public class Intel8088Core implements Runnable {
    // Interrupt Processing
    // ------------------------------------------------------
    private void Interrupt_Handler(byte local_intr_type) {
-      _clock.incClockCounter((byte) 71);
+      clock.incClockCounter((byte) 71);
 
       int pushAddr = (_registers.CS << 4) + _registers.IP;
       _instLogger.debug(String.format("     pushing return addr: 0x%05X", pushAddr));
@@ -991,19 +673,19 @@ public class Intel8088Core implements Runnable {
 
    // DIV0 Handler - Interrupt Type 0 - Division by Zero
    private void Div0Handler() {
-      _clock.incClockCounter((byte) 1);
+      clock.incClockCounter((byte) 1);
       Interrupt_Handler((byte) 0x0);
    }
 
    // TRAP Handler - Interrupt Type 1 - TRAP (Single Step)
    private void TrapHandler() {
-      _clock.incClockCounter((byte) 1);
+      clock.incClockCounter((byte) 1);
       Interrupt_Handler((byte) 0x1);
    }
 
    // NMI Handler - Interrupt Type 2
    private void NmiHandler() {
-      _clock.incClockCounter((byte) 1);
+      clock.incClockCounter((byte) 1);
       _nmiLatched.Clear();
       Interrupt_Handler((byte) 0x2);
    }
@@ -1032,26 +714,26 @@ public class Intel8088Core implements Runnable {
          _registers.Flags = (int) (_registers.Flags | 0x0040);
 
       // Set P Flag using array table lookup
-      _registers.Flags = (int) (_registers.Flags | Parity_Array[localData]);
+      _registers.Flags = (int) (_registers.Flags | Parity_Array[Byte.toUnsignedInt(localData)]);
    }
 
    // ------------------------------------------------------
    // Set Flags S, Z, P for word data:
    // ------------------------------------------------------
-   private void Set_Flags_Word_SZP(int local_data) {
+   private void Set_Flags_Word_SZP(int localData) {
       // Zero out Flags: S, Z, P
       _registers.Flags = (int) (_registers.Flags & 0xFF3B);
 
       // Set S Flag
-      if ((local_data & 0x8000) > 0)
+      if ((localData & 0x8000) > 0)
          _registers.Flags = (int) (_registers.Flags | 0x0080);
 
       // Set Z Flag
-      if (local_data == 0x0000)
+      if (localData == 0x0000)
          _registers.Flags = (int) (_registers.Flags | 0x0040);
 
       // Set P Flag using array table lookup
-      _registers.Flags = (int) (_registers.Flags | Parity_Array[(0xFF & local_data)]);
+      _registers.Flags = (int) (_registers.Flags | Parity_Array[(0xFF & localData)]);
    }
 
    // ------------------------------------------------------
@@ -1249,7 +931,7 @@ public class Intel8088Core implements Runnable {
    // 0x06 - PUSH ES
    // -------------------------------------------------------------------------
    private void OpCode_0x06() {
-      _clock.incClockCounter((byte) 14);
+      clock.incClockCounter((byte) 14);
       Push(_registers.ES);
    }
 
@@ -1257,7 +939,7 @@ public class Intel8088Core implements Runnable {
    // 0x0E - PUSH CS
    // -------------------------------------------------------------------------
    private void OpCode_0x0E() {
-      _clock.incClockCounter((byte) 14);
+      clock.incClockCounter((byte) 14);
       Push(_registers.CS);
    }
 
@@ -1265,7 +947,7 @@ public class Intel8088Core implements Runnable {
    // 0x16 - PUSH SS
    // -------------------------------------------------------------------------
    private void OpCode_0x16() {
-      _clock.incClockCounter((byte) 14);
+      clock.incClockCounter((byte) 14);
       Push(_registers.SS);
    }
 
@@ -1273,7 +955,7 @@ public class Intel8088Core implements Runnable {
    // 0x1E - PUSH DS
    // -------------------------------------------------------------------------
    private void OpCode_0x1E() {
-      _clock.incClockCounter((byte) 14);
+      clock.incClockCounter((byte) 14);
       Push(_registers.DS);
    }
 
@@ -1281,7 +963,7 @@ public class Intel8088Core implements Runnable {
    // 0x9C - PUSHF - Push Flags
    // -------------------------------------------------------------------------
    private void OpCode_0x9C() {
-      _clock.incClockCounter((byte) 14);
+      clock.incClockCounter((byte) 14);
       Push((byte) (0xF000 | _registers.Flags));
    }
 
@@ -1289,7 +971,7 @@ public class Intel8088Core implements Runnable {
    // 0x50 - PUSH AX
    // -------------------------------------------------------------------------
    private void OpCode_0x50() {
-      _clock.incClockCounter((byte) 15);
+      clock.incClockCounter((byte) 15);
       Push(_registers.AX);
    }
 
@@ -1297,7 +979,7 @@ public class Intel8088Core implements Runnable {
    // 0x51 - PUSH CX
    // -------------------------------------------------------------------------
    private void OpCode_0x51() {
-      _clock.incClockCounter((byte) 15);
+      clock.incClockCounter((byte) 15);
       Push(_registers.CX);
    }
 
@@ -1305,7 +987,7 @@ public class Intel8088Core implements Runnable {
    // 0x52 - PUSH DX
    // -------------------------------------------------------------------------
    private void OpCode_0x52() {
-      _clock.incClockCounter((byte) 15);
+      clock.incClockCounter((byte) 15);
       Push(_registers.DX);
    }
 
@@ -1313,7 +995,7 @@ public class Intel8088Core implements Runnable {
    // 0x53 - PUSH BX
    // -------------------------------------------------------------------------
    private void OpCode_0x53() {
-      _clock.incClockCounter((byte) 15);
+      clock.incClockCounter((byte) 15);
       Push(_registers.BX);
    }
 
@@ -1321,7 +1003,7 @@ public class Intel8088Core implements Runnable {
    // 0x54 - PUSH the new SP
    // -------------------------------------------------------------------------
    private void OpCode_0x54() {
-      _clock.incClockCounter((byte) 15);
+      clock.incClockCounter((byte) 15);
       Push((byte) (_registers.SP - 2));
    }
 
@@ -1329,7 +1011,7 @@ public class Intel8088Core implements Runnable {
    // 0x55 - PUSH BP
    // -------------------------------------------------------------------------
    private void OpCode_0x55() {
-      _clock.incClockCounter((byte) 15);
+      clock.incClockCounter((byte) 15);
       Push(_registers.BP);
    }
 
@@ -1337,7 +1019,7 @@ public class Intel8088Core implements Runnable {
    // 0x56 - PUSH SI
    // -------------------------------------------------------------------------
    private void OpCode_0x56() {
-      _clock.incClockCounter((byte) 15);
+      clock.incClockCounter((byte) 15);
       Push(_registers.SI);
    }
 
@@ -1345,7 +1027,7 @@ public class Intel8088Core implements Runnable {
    // 0x57 - PUSH DI
    // -------------------------------------------------------------------------
    private void OpCode_0x57() {
-      _clock.incClockCounter((byte) 15);
+      clock.incClockCounter((byte) 15);
       Push(_registers.DI);
    }
 
@@ -1367,7 +1049,7 @@ public class Intel8088Core implements Runnable {
    // 0x07 - POP ES - Set prefix so no interrupt on next instruction
    // -------------------------------------------------------------------------
    private void OpCode_0x07() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.ES = Pop();
       _pauseInterrupts = true;
    }
@@ -1376,7 +1058,7 @@ public class Intel8088Core implements Runnable {
    // 0x0F - POP CS - Set prefix so no interrupt on next instruction
    // -------------------------------------------------------------------------
    private void OpCode_0x0F() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.CS = Pop();
       _pauseInterrupts = true;
    }
@@ -1385,7 +1067,7 @@ public class Intel8088Core implements Runnable {
    // 0x17 - POP SS - Set prefix so no interrupt on next instruction
    // -------------------------------------------------------------------------
    private void OpCode_0x17() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.SS = Pop();
       _pauseInterrupts = true;
    }
@@ -1394,7 +1076,7 @@ public class Intel8088Core implements Runnable {
    // 0x1F - POP DS - Set prefix so no interrupt on next instruction
    // -------------------------------------------------------------------------
    private void OpCode_0x1F() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.DS = Pop();
       _pauseInterrupts = true;
    }
@@ -1403,7 +1085,7 @@ public class Intel8088Core implements Runnable {
    // 0x9D - POPF - POP Flags
    // -------------------------------------------------------------------------
    private void OpCode_0x9D() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.Flags = (int) (0xF000 | (0x0FD5 & Pop()));
       _pauseInterrupts = true;
    }
@@ -1412,7 +1094,7 @@ public class Intel8088Core implements Runnable {
    // 0x58 - POP AX
    // -------------------------------------------------------------------------
    private void OpCode_0x58() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.AX = Pop();
    }
 
@@ -1420,7 +1102,7 @@ public class Intel8088Core implements Runnable {
    // 0x59 - POP CX
    // -------------------------------------------------------------------------
    private void OpCode_0x59() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.CX = Pop();
    }
 
@@ -1428,7 +1110,7 @@ public class Intel8088Core implements Runnable {
    // 0x5A - POP DX
    // -------------------------------------------------------------------------
    private void OpCode_0x5A() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.DX = Pop();
    }
 
@@ -1436,7 +1118,7 @@ public class Intel8088Core implements Runnable {
    // 0x5B - POP BX
    // -------------------------------------------------------------------------
    private void OpCode_0x5B() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.BX = Pop();
    }
 
@@ -1444,7 +1126,7 @@ public class Intel8088Core implements Runnable {
    // 0x5C - POP SP
    // -------------------------------------------------------------------------
    private void OpCode_0x5C() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.SP = Pop();
    }
 
@@ -1452,7 +1134,7 @@ public class Intel8088Core implements Runnable {
    // 0x5D - POP BP
    // -------------------------------------------------------------------------
    private void OpCode_0x5D() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.BP = Pop();
    }
 
@@ -1460,7 +1142,7 @@ public class Intel8088Core implements Runnable {
    // 0x5E - POP SI
    // -------------------------------------------------------------------------
    private void OpCode_0x5E() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.SI = Pop();
    }
 
@@ -1468,7 +1150,7 @@ public class Intel8088Core implements Runnable {
    // 0x5F - POP DI
    // -------------------------------------------------------------------------
    private void OpCode_0x5F() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       _registers.DI = Pop();
    }
 
@@ -1478,9 +1160,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x8F() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 8);
+         clock.incClockCounter((byte) 8);
       else
-         _clock.incClockCounter((byte) 17);
+         clock.incClockCounter((byte) 17);
       WriteBackEa(Pop());
    }
 
@@ -1494,7 +1176,7 @@ public class Intel8088Core implements Runnable {
    // 0xEC - IN - ac,DX - Variable Port - Byte
    // -------------------------------------------------------------------------
    private void OpCode_0xEC() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
 
       // Fetch the IO byte data at address DX
       // var localData = Biu_Operation(BiuOperations.IoReadByte,
@@ -1507,7 +1189,7 @@ public class Intel8088Core implements Runnable {
    // 0xE4 0xpp - IN - ac,Opcode Port - Byte
    // -------------------------------------------------------------------------
    private void OpCode_0xE4() {
-      _clock.incClockCounter((byte) 10);
+      clock.incClockCounter((byte) 10);
 
       // Fetch the IO byte data at address described in next opcode
       // var localData = Biu_Operation(BiuOperations.IoReadByte,
@@ -1521,7 +1203,7 @@ public class Intel8088Core implements Runnable {
    // 0xED - IN - ac,DX - Variable Port - Word
    // -------------------------------------------------------------------------
    private void OpCode_0xED() {
-      _clock.incClockCounter((byte) 12);
+      clock.incClockCounter((byte) 12);
 
       // _registers.AX = Biu_Operation(BiuOperations.IoReadWord,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_00, _registers.DX, 0x00);
@@ -1532,7 +1214,7 @@ public class Intel8088Core implements Runnable {
    // 0xE5 0xpp - IN - ac,Opcode Port - Word
    // -------------------------------------------------------------------------
    private void OpCode_0xE5() {
-      _clock.incClockCounter((byte) 14);
+      clock.incClockCounter((byte) 14);
 
       // _registers.AX = Biu_Operation(BiuOperations.IoReadWord,
       // SEGMENT_OVERRIDABLE_FALSE, SEGMENT_00, (int)(0xFF & PfqFetchByte()), 0x00);
@@ -1544,7 +1226,7 @@ public class Intel8088Core implements Runnable {
    // 0xEE - OUT - DX - Variable Port - Byte
    // -------------------------------------------------------------------------
    private void OpCode_0xEE() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
 
       // Biu_Operation(BiuOperations.IoWriteByte, SEGMENT_OVERRIDABLE_FALSE,
       // SEGMENT_00, _registers.DX, _registers.AX);
@@ -1555,7 +1237,7 @@ public class Intel8088Core implements Runnable {
    // 0xEF - OUT - DX - Variable Port - Word
    // -------------------------------------------------------------------------
    private void OpCode_0xEF() {
-      _clock.incClockCounter((byte) 12);
+      clock.incClockCounter((byte) 12);
 
       // Biu_Operation(BiuOperations.IoWriteWord, SEGMENT_OVERRIDABLE_FALSE,
       // SEGMENT_00, _registers.DX, _registers.AX);
@@ -1567,7 +1249,7 @@ public class Intel8088Core implements Runnable {
    // 0xE6 0xpp - OUT - Opcode Port - Byte
    // -------------------------------------------------------------------------
    private void OpCode_0xE6() {
-      _clock.incClockCounter((byte) 10);
+      clock.incClockCounter((byte) 10);
 
       // Biu_Operation(BiuOperations.IoWriteByte, SEGMENT_OVERRIDABLE_FALSE,
       // SEGMENT_00, (int)(0xFF & PfqFetchByte()), _registers.AX);
@@ -1580,7 +1262,7 @@ public class Intel8088Core implements Runnable {
    // 0xE7 0xpp - OUT - Opcode Port - Word
    // -------------------------------------------------------------------------
    private void OpCode_0xE7() {
-      _clock.incClockCounter((byte) 14);
+      clock.incClockCounter((byte) 14);
 
       // Biu_Operation(BiuOperations.IoWriteWord, SEGMENT_OVERRIDABLE_FALSE,
       // SEGMENT_00, (int)(0xFF & PfqFetchByte()), _registers.AX);
@@ -1594,12 +1276,12 @@ public class Intel8088Core implements Runnable {
    /////////////////////////////////////////////////////////////////////////////
 
    private void Jump_Not_Taken8() {
-      _clock.incClockCounter((byte) 3);
+      clock.incClockCounter((byte) 3);
       PfqFetchByte();
    }
 
    private void Jump_Taken8() {
-      _clock.incClockCounter((byte) 9);
+      clock.incClockCounter((byte) 9);
       int localDisplacement = PfqFetchByte();
       localDisplacement = SignExtendedByte(localDisplacement);
       _registers.IP += localDisplacement;
@@ -1612,7 +1294,7 @@ public class Intel8088Core implements Runnable {
    }
 
    private void Jump_Taken16() {
-      _clock.incClockCounter((byte) 7);
+      clock.incClockCounter((byte) 7);
       int localDisplacement = PfqFetchWord();
       _registers.IP += localDisplacement;
 
@@ -1624,7 +1306,7 @@ public class Intel8088Core implements Runnable {
    }
 
    private void Jump_Taken32() {
-      _clock.incClockCounter((byte) 7);
+      clock.incClockCounter((byte) 7);
       int localNewIp = PfqFetchWord();
       int localNewCs = PfqFetchWord();
 
@@ -1802,7 +1484,7 @@ public class Intel8088Core implements Runnable {
    // [0xE3 0xdd] - JCXZ - Jump if CX Zero
    // -------------------------------------------------------------------------
    private void OpCode_0xE3() {
-      _clock.incClockCounter((byte) 0);
+      clock.incClockCounter((byte) 0);
       if (_registers.CX == 0)
          Jump_Taken8();
       else
@@ -1834,7 +1516,7 @@ public class Intel8088Core implements Runnable {
    // [0xE8 0xLO 0xHI] - CALL Intra-segment
    // -------------------------------------------------------------------------
    private void OpCode_0xE8() {
-      _clock.incClockCounter((byte) 8);
+      clock.incClockCounter((byte) 8);
       Push((int) (_registers.IP + 2));
       Jump_Taken16();
    }
@@ -1843,7 +1525,7 @@ public class Intel8088Core implements Runnable {
    // 0x9A 0xLO 0xHI 0xCSLO 0xCSHI] - CALL Inter-segment
    // -------------------------------------------------------------------------
    private void OpCode_0x9A() {
-      _clock.incClockCounter((byte) 21);
+      clock.incClockCounter((byte) 21);
       Push(_registers.CS);
       Push((int) (_registers.IP + 4));
       Jump_Taken32();
@@ -1853,7 +1535,7 @@ public class Intel8088Core implements Runnable {
    // 0xC3 - Return - Intra-Segment
    // -------------------------------------------------------------------------
    private void OpCode_0xC3() {
-      _clock.incClockCounter((byte) 20);
+      clock.incClockCounter((byte) 20);
       _registers.IP = Pop();
       _pfqInAddress = _registers.IP;
 
@@ -1867,7 +1549,7 @@ public class Intel8088Core implements Runnable {
    // 0xCB - Return - Inter-Segment
    // -------------------------------------------------------------------------
    private void OpCode_0xCB() {
-      _clock.incClockCounter((byte) 34);
+      clock.incClockCounter((byte) 34);
       _registers.IP = Pop();
       _registers.CS = Pop();
 
@@ -1882,7 +1564,7 @@ public class Intel8088Core implements Runnable {
    // [0xC2 0xLO 0xHI] - Return - Intra-Segment and Add Immediate to Stack Pointer
    // -------------------------------------------------------------------------
    private void OpCode_0xC2() {
-      _clock.incClockCounter((byte) 24);
+      clock.incClockCounter((byte) 24);
       int tempIp = Pop();
       _registers.SP += PfqFetchWord();
       _registers.IP = tempIp;
@@ -1898,7 +1580,7 @@ public class Intel8088Core implements Runnable {
    // [0xCA 0xLO 0xHI]- Return - Inter-Segment and Add Immediate to Stack Pointer
    // -------------------------------------------------------------------------
    private void OpCode_0xCA() {
-      _clock.incClockCounter((byte) 33);
+      clock.incClockCounter((byte) 33);
       int newIp = Pop();
       int newCs = Pop();
       _registers.SP += PfqFetchWord();
@@ -1916,7 +1598,7 @@ public class Intel8088Core implements Runnable {
    // 0xCF - IRET - Return from Interrupt
    // -------------------------------------------------------------------------
    private void OpCode_0xCF() {
-      _clock.incClockCounter((byte) 44);
+      clock.incClockCounter((byte) 44);
       _registers.IP = Pop();
       _registers.CS = Pop();
 
@@ -1957,9 +1639,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x08() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 16);
+         clock.incClockCounter((byte) 16);
       WriteBackEa(BooleanOr(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -1969,9 +1651,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x09() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 24);
+         clock.incClockCounter((byte) 24);
       WriteBackEa(BooleanOr(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -1981,9 +1663,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x0A() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       WriteRegister(_regFieldTable, BooleanOr(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -1993,9 +1675,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x0B() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       WriteRegister(_regFieldTable, BooleanOr(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2003,7 +1685,7 @@ public class Intel8088Core implements Runnable {
    // 0x0C OR - AL,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0x0C() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _wordOperation = 0;
       WriteRegister(REG_AL, BooleanOr(_registers.AX, PfqFetchByte()));
    }
@@ -2012,7 +1694,7 @@ public class Intel8088Core implements Runnable {
    // 0x0D OR - AX,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0x0D() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _wordOperation = 1;
       _registers.AX = BooleanOr(_registers.AX, PfqFetchWord());
    }
@@ -2037,9 +1719,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x20() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 16);
+         clock.incClockCounter((byte) 16);
       WriteBackEa(BooleanAnd(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2049,9 +1731,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x21() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 24);
+         clock.incClockCounter((byte) 24);
       WriteBackEa(BooleanAnd(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2061,9 +1743,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x22() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       WriteRegister(_regFieldTable, BooleanAnd(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2073,9 +1755,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x23() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       WriteRegister(_regFieldTable, BooleanAnd(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2083,7 +1765,7 @@ public class Intel8088Core implements Runnable {
    // 0x24 AND - AL,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0x24() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _wordOperation = 0;
       WriteRegister(REG_AL, BooleanAnd(_registers.AX, PfqFetchByte()));
    }
@@ -2092,7 +1774,7 @@ public class Intel8088Core implements Runnable {
    // 0x25 AND - AX,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0x25() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _wordOperation = 1;
       _registers.AX = BooleanAnd(_registers.AX, PfqFetchWord());
    }
@@ -2117,9 +1799,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x30() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 16);
+         clock.incClockCounter((byte) 16);
       WriteBackEa(BooleanXor(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2129,9 +1811,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x31() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 24);
+         clock.incClockCounter((byte) 24);
       WriteBackEa(BooleanXor(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2141,9 +1823,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x32() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       WriteRegister(_regFieldTable, BooleanXor(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2153,9 +1835,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x33() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       WriteRegister(_regFieldTable, BooleanXor(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2163,7 +1845,7 @@ public class Intel8088Core implements Runnable {
    // 0x34 XOR - AL,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0x34() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _wordOperation = 0;
       WriteRegister(REG_AL, BooleanXor(_registers.AX, PfqFetchByte()));
    }
@@ -2172,7 +1854,7 @@ public class Intel8088Core implements Runnable {
    // 0x35 XOR - AX,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0x35() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _wordOperation = 1;
       _registers.AX = BooleanXor(_registers.AX, PfqFetchWord());
    }
@@ -2189,9 +1871,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x00() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 16);
+         clock.incClockCounter((byte) 16);
       WriteBackEa(AddBytes((byte) FetchEa(), (byte) FetchRegister(_regFieldTable)));
    }
 
@@ -2201,9 +1883,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x01() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 24);
+         clock.incClockCounter((byte) 24);
       WriteBackEa(AddWords(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2213,9 +1895,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x02() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       WriteRegister(_regFieldTable, AddBytes((byte) FetchEa(), (byte) FetchRegister(_regFieldTable)));
    }
 
@@ -2225,9 +1907,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x03() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       WriteRegister(_regFieldTable, AddWords(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2235,7 +1917,7 @@ public class Intel8088Core implements Runnable {
    // # 0x04 - ADD AL , IMMED8
    // -------------------------------------------------------------------------
    private void OpCode_0x04() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       WriteRegister(REG_AL, AddBytes((byte) _registers.AX, PfqFetchByte()));
    }
 
@@ -2243,7 +1925,7 @@ public class Intel8088Core implements Runnable {
    // # 0x05 - ADD AX , IMMED16
    // -------------------------------------------------------------------------
    private void OpCode_0x05() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.AX = AddWords(_registers.AX, PfqFetchWord());
    }
 
@@ -2253,9 +1935,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x10() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 16);
+         clock.incClockCounter((byte) 16);
       with_carry = 1;
       WriteBackEa(AddBytes((byte) FetchEa(), (byte) FetchRegister(_regFieldTable)));
    }
@@ -2266,9 +1948,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x11() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 24);
+         clock.incClockCounter((byte) 24);
       with_carry = 1;
       WriteBackEa(AddWords(FetchEa(), FetchRegister(_regFieldTable)));
    }
@@ -2279,9 +1961,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x12() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       with_carry = 1;
       WriteRegister(_regFieldTable, AddBytes((byte) FetchEa(), (byte) FetchRegister(_regFieldTable)));
    }
@@ -2292,9 +1974,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x13() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       with_carry = 1;
       WriteRegister(_regFieldTable, AddWords(FetchEa(), FetchRegister(_regFieldTable)));
    }
@@ -2303,7 +1985,7 @@ public class Intel8088Core implements Runnable {
    // # 0x14 - ADC AL , IMMED8
    // -------------------------------------------------------------------------
    private void OpCode_0x14() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       with_carry = 1;
       WriteRegister(REG_AL, AddBytes((byte) _registers.AX, PfqFetchByte()));
    }
@@ -2312,7 +1994,7 @@ public class Intel8088Core implements Runnable {
    // # 0x15 - ADC AX , IMMED16
    // -------------------------------------------------------------------------
    private void OpCode_0x15() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       with_carry = 1;
       _registers.AX = AddWords(_registers.AX, PfqFetchWord());
    }
@@ -2323,9 +2005,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x18() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 16);
+         clock.incClockCounter((byte) 16);
       with_carry = 1;
       WriteBackEa(SubBytes((byte) FetchEa(), (byte) FetchRegister(_regFieldTable)));
    }
@@ -2336,9 +2018,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x19() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 24);
+         clock.incClockCounter((byte) 24);
       with_carry = 1;
       WriteBackEa(SubWords(FetchEa(), FetchRegister(_regFieldTable)));
    }
@@ -2349,9 +2031,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x1A() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       with_carry = 1;
       WriteRegister(_regFieldTable, SubBytes((byte) FetchRegister(_regFieldTable), (byte) FetchEa()));
    }
@@ -2362,9 +2044,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x1B() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       with_carry = 1;
       WriteRegister(_regFieldTable, SubWords(FetchRegister(_regFieldTable), FetchEa()));
    }
@@ -2373,7 +2055,7 @@ public class Intel8088Core implements Runnable {
    // # 0x1C - SBB AL , IMMED8
    // -------------------------------------------------------------------------
    private void OpCode_0x1C() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       with_carry = 1;
       WriteRegister(REG_AL, SubBytes((byte) _registers.AX, PfqFetchByte()));
    }
@@ -2382,7 +2064,7 @@ public class Intel8088Core implements Runnable {
    // # 0x1D - SBB AX , IMMED16
    // -------------------------------------------------------------------------
    private void OpCode_0x1D() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       with_carry = 1;
       _registers.AX = SubWords(_registers.AX, PfqFetchWord());
    }
@@ -2393,9 +2075,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x28() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 16);
+         clock.incClockCounter((byte) 16);
       WriteBackEa(SubBytes((byte) FetchEa(), (byte) FetchRegister(_regFieldTable)));
    }
 
@@ -2405,9 +2087,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x29() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 24);
+         clock.incClockCounter((byte) 24);
       WriteBackEa(SubWords(FetchEa(), FetchRegister(_regFieldTable)));
    }
 
@@ -2417,9 +2099,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x2A() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       WriteRegister(_regFieldTable, SubBytes((byte) FetchRegister(_regFieldTable), (byte) FetchEa()));
    }
 
@@ -2429,9 +2111,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x2B() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       WriteRegister(_regFieldTable, SubWords(FetchRegister(_regFieldTable), FetchEa()));
    }
 
@@ -2439,7 +2121,7 @@ public class Intel8088Core implements Runnable {
    // # 0x2C - SUB AL , IMMED8
    // -------------------------------------------------------------------------
    private void OpCode_0x2C() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       WriteRegister(REG_AL, SubBytes((byte) _registers.AX, PfqFetchByte()));
    }
 
@@ -2447,7 +2129,7 @@ public class Intel8088Core implements Runnable {
    // # 0x2D - SUB AX , IMMED16
    // -------------------------------------------------------------------------
    private void OpCode_0x2D() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.AX = SubWords(_registers.AX, PfqFetchWord());
    }
 
@@ -2457,9 +2139,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x38() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       SubBytes((byte) FetchEa(), (byte) FetchRegister(_regFieldTable));
    }
 
@@ -2469,9 +2151,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x39() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       SubWords(FetchEa(), FetchRegister(_regFieldTable));
    }
 
@@ -2481,9 +2163,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x3A() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       SubBytes((byte) FetchRegister(_regFieldTable), (byte) FetchEa());
    }
 
@@ -2493,9 +2175,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x3B() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       SubWords(FetchRegister(_regFieldTable), FetchEa());
    }
 
@@ -2503,7 +2185,7 @@ public class Intel8088Core implements Runnable {
    // # 0x3C - CMP AL , IMMED8
    // -------------------------------------------------------------------------
    private void OpCode_0x3C() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       SubBytes((byte) _registers.AX, PfqFetchByte());
    }
 
@@ -2511,7 +2193,7 @@ public class Intel8088Core implements Runnable {
    // # 0x3D - CMP AX , IMMED16
    // -------------------------------------------------------------------------
    private void OpCode_0x3D() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       SubWords(_registers.AX, PfqFetchWord());
    }
 
@@ -2523,7 +2205,7 @@ public class Intel8088Core implements Runnable {
    // # 0x40 - INC AX
    // -------------------------------------------------------------------------
    private void OpCode_0x40() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.AX = AddWords(_registers.AX, 0x1);
    }
@@ -2532,7 +2214,7 @@ public class Intel8088Core implements Runnable {
    // # 0x41 - INC CX
    // -------------------------------------------------------------------------
    private void OpCode_0x41() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.CX = AddWords(_registers.CX, 0x1);
    }
@@ -2541,7 +2223,7 @@ public class Intel8088Core implements Runnable {
    // # 0x42 - INC DX
    // -------------------------------------------------------------------------
    private void OpCode_0x42() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.DX = AddWords(_registers.DX, 0x1);
    }
@@ -2550,7 +2232,7 @@ public class Intel8088Core implements Runnable {
    // # 0x43 - INC BX
    // -------------------------------------------------------------------------
    private void OpCode_0x43() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.BX = AddWords(_registers.BX, 0x1);
    }
@@ -2559,7 +2241,7 @@ public class Intel8088Core implements Runnable {
    // # 0x44 - INC SP
    // -------------------------------------------------------------------------
    private void OpCode_0x44() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.SP = AddWords(_registers.SP, 0x1);
    }
@@ -2568,7 +2250,7 @@ public class Intel8088Core implements Runnable {
    // # 0x45 - INC BP
    // -------------------------------------------------------------------------
    private void OpCode_0x45() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.BP = AddWords(_registers.BP, 0x1);
    }
@@ -2577,7 +2259,7 @@ public class Intel8088Core implements Runnable {
    // # 0x46 - INC SI
    // -------------------------------------------------------------------------
    private void OpCode_0x46() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.SI = AddWords(_registers.SI, 0x1);
    }
@@ -2586,7 +2268,7 @@ public class Intel8088Core implements Runnable {
    // # 0x47 - INC DI
    // -------------------------------------------------------------------------
    private void OpCode_0x47() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.DI = AddWords(_registers.DI, 0x1);
    }
@@ -2599,7 +2281,7 @@ public class Intel8088Core implements Runnable {
    // # 0x48 - DEC AX
    // -------------------------------------------------------------------------
    private void OpCode_0x48() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.AX = SubWords(_registers.AX, 0x1);
    }
@@ -2608,7 +2290,7 @@ public class Intel8088Core implements Runnable {
    // # 0x49 - DEC CX
    // -------------------------------------------------------------------------
    private void OpCode_0x49() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.CX = SubWords(_registers.CX, 0x1);
    }
@@ -2617,7 +2299,7 @@ public class Intel8088Core implements Runnable {
    // # 0x4A - DEC DX
    // -------------------------------------------------------------------------
    private void OpCode_0x4A() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.DX = SubWords(_registers.DX, 0x1);
    }
@@ -2626,7 +2308,7 @@ public class Intel8088Core implements Runnable {
    // # 0x4B - DEC BX
    // -------------------------------------------------------------------------
    private void OpCode_0x4B() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.BX = SubWords(_registers.BX, 0x1);
    }
@@ -2635,7 +2317,7 @@ public class Intel8088Core implements Runnable {
    // # 0x4C - DEC SP
    // -------------------------------------------------------------------------
    private void OpCode_0x4C() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.SP = SubWords(_registers.SP, 0x1);
    }
@@ -2644,7 +2326,7 @@ public class Intel8088Core implements Runnable {
    // # 0x4D - DEC BP
    // -------------------------------------------------------------------------
    private void OpCode_0x4D() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.BP = SubWords(_registers.BP, 0x1);
    }
@@ -2653,7 +2335,7 @@ public class Intel8088Core implements Runnable {
    // # 0x4E - DEC SI
    // -------------------------------------------------------------------------
    private void OpCode_0x4E() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.SI = SubWords(_registers.SI, 0x1);
    }
@@ -2662,7 +2344,7 @@ public class Intel8088Core implements Runnable {
    // # 0x4F - DEC DI
    // -------------------------------------------------------------------------
    private void OpCode_0x4F() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       incDec = 1;
       _registers.DI = SubWords(_registers.DI, 0x1);
    }
@@ -2677,22 +2359,22 @@ public class Intel8088Core implements Runnable {
             _wordOperation = 0;
             incDec = 1;
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 3);
+               clock.incClockCounter((byte) 3);
             else
-               _clock.incClockCounter((byte) 15);
+               clock.incClockCounter((byte) 15);
             WriteBackEa(AddBytes((byte) FetchEa(), (byte) 0x1));
             break; // # 0xFE REG[0] - INC REG8/MEM8
          case 0x1:
             _wordOperation = 0;
             incDec = 1;
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 3);
+               clock.incClockCounter((byte) 3);
             else
-               _clock.incClockCounter((byte) 15);
+               clock.incClockCounter((byte) 15);
             WriteBackEa(SubBytes((byte) FetchEa(), (byte) 0x1));
             break; // # 0xFE REG[1] - DEC REG8/MEM8
          case 0x2:
-            _clock.incClockCounter((byte) 21);
+            clock.incClockCounter((byte) 21);
             _wordOperation = 1;
             Push(_registers.IP);
             _registers.IP = FetchEa();
@@ -2700,7 +2382,7 @@ public class Intel8088Core implements Runnable {
             prefetch_queue_count = 0;
             break; // # 0xFF REG[2] - CALL REG16/MEM16 Intra-segment ** Repeated **
          case 0x3:
-            _clock.incClockCounter((byte) 37);
+            clock.incClockCounter((byte) 37);
             _wordOperation = 1;
             Push(_registers.CS);
             Push(_registers.IP);
@@ -2710,14 +2392,14 @@ public class Intel8088Core implements Runnable {
             _registers.CS = FetchEa();
             break; // # 0xFF REG[3] - CALL MEM16 Inter-segment ** Repeated **
          case 0x4:
-            _clock.incClockCounter((byte) 18);
+            clock.incClockCounter((byte) 18);
             _wordOperation = 1;
             _registers.IP = FetchEa();
             _pfqInAddress = _registers.IP;
             prefetch_queue_count = 0;
             break; // # 0xFF REG[4] - JMP REG16/MEM16 Intra-segment ** Repeated **
          case 0x5:
-            _clock.incClockCounter((byte) 24);
+            clock.incClockCounter((byte) 24);
             _wordOperation = 1;
             _registers.IP = FetchEa();
             prefetch_queue_count = 0;
@@ -2725,12 +2407,12 @@ public class Intel8088Core implements Runnable {
             _registers.CS = FetchEa();
             break; // # 0xFF REG[5] - JMP MEM16 Inter-segment ** Repeated **
          case 0x6:
-            _clock.incClockCounter((byte) 16);
+            clock.incClockCounter((byte) 16);
             _wordOperation = 1;
             Push(FetchEa());
             break; // # 0xFF REG[6] - PUSH MEM16 ** Repeated **
          case 0x7:
-            _clock.incClockCounter((byte) 16);
+            clock.incClockCounter((byte) 16);
             _wordOperation = 1;
             Push(FetchEa());
             break; // # 0xFF REG[7] - PUSH MEM16 ** Repeated **
@@ -2745,29 +2427,29 @@ public class Intel8088Core implements Runnable {
       switch (_regField) {
          case 0x0:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 3);
+               clock.incClockCounter((byte) 3);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             incDec = 1;
             WriteBackEa(AddWords(FetchEa(), 0x1));
             break; // # 0xFF REG[0] - INC MEM16
          case 0x1:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 3);
+               clock.incClockCounter((byte) 3);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             incDec = 1;
             WriteBackEa(SubWords(FetchEa(), 0x1));
             break; // # 0xFF REG[1] - DEC MEM16
          case 0x2:
-            _clock.incClockCounter((byte) 29);
+            clock.incClockCounter((byte) 29);
             Push(_registers.IP);
             _registers.IP = FetchEa();
             _pfqInAddress = _registers.IP;
             prefetch_queue_count = 0;
             break; // # 0xFF REG[2] - CALL REG16/MEM16 Intra-segment
          case 0x3:
-            _clock.incClockCounter((byte) 53);
+            clock.incClockCounter((byte) 53);
             Push(_registers.CS);
             Push(_registers.IP);
             _registers.IP = FetchEa();
@@ -2778,18 +2460,18 @@ public class Intel8088Core implements Runnable {
             break; // # 0xFF REG[3] - CALL MEM16 Inter-segment
          case 0x4:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 11);
+               clock.incClockCounter((byte) 11);
             else
-               _clock.incClockCounter((byte) 22);
+               clock.incClockCounter((byte) 22);
             _registers.IP = FetchEa();
             _pfqInAddress = _registers.IP;
             prefetch_queue_count = 0;
             break; // # 0xFF REG[4] - JMP REG16/MEM16 Intra-segment
          case 0x5:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 11);
+               clock.incClockCounter((byte) 11);
             else
-               _clock.incClockCounter((byte) 24);
+               clock.incClockCounter((byte) 24);
             _registers.IP = FetchEa();
             _eaAddress += 2;
             _registers.CS = FetchEa();
@@ -2797,11 +2479,11 @@ public class Intel8088Core implements Runnable {
             prefetch_queue_count = 0;
             break; // # 0xFF REG[5] - JMP MEM16 Inter-segment
          case 0x6:
-            _clock.incClockCounter((byte) 24);
+            clock.incClockCounter((byte) 24);
             Push(FetchEa());
             break; // # 0xFF REG[6] - PUSH MEM16
          case 0x7:
-            _clock.incClockCounter((byte) 24);
+            clock.incClockCounter((byte) 24);
             Push(FetchEa());
             break; // # 0xFF REG[7] - PUSH MEM16 ** Repeated **
       }
@@ -2817,7 +2499,7 @@ public class Intel8088Core implements Runnable {
    // 0x90 - NOP
    // -------------------------------------------------------------------------
    private void OpCode_0x90() {
-      _clock.setClockCounter((byte) 3);
+      clock.setClockCounter((byte) 3);
    }
 
    // =========================================================================
@@ -2828,7 +2510,7 @@ public class Intel8088Core implements Runnable {
    // 0xF8 - CLC - Clear Carry Flag
    // -------------------------------------------------------------------------
    private void OpCode_0xF8() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _registers.Flags &= 0xFFFE;
    }
 
@@ -2836,7 +2518,7 @@ public class Intel8088Core implements Runnable {
    // 0xF5 - CMC - Complement Carry Flag
    // -------------------------------------------------------------------------
    private void OpCode_0xF5() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _registers.Flags ^= 0x0001;
    }
 
@@ -2844,7 +2526,7 @@ public class Intel8088Core implements Runnable {
    // 0xF9 - STC - Set Carry Flag
    // -------------------------------------------------------------------------
    private void OpCode_0xF9() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _registers.Flags |= 0x0001;
    }
 
@@ -2852,7 +2534,7 @@ public class Intel8088Core implements Runnable {
    // 0xFC - CLD - Clear Direction Flag
    // -------------------------------------------------------------------------
    private void OpCode_0xFC() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _registers.Flags &= 0xFBFF;
    }
 
@@ -2860,7 +2542,7 @@ public class Intel8088Core implements Runnable {
    // 0xFD - STD - Set Direction Flag
    // -------------------------------------------------------------------------
    private void OpCode_0xFD() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _registers.Flags |= 0x0400;
    }
 
@@ -2868,7 +2550,7 @@ public class Intel8088Core implements Runnable {
    // 0xFA - CLI - Clear Interrupt Flag
    // -------------------------------------------------------------------------
    private void OpCode_0xFA() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _registers.Flags &= 0xFDFF;
    }
 
@@ -2876,7 +2558,7 @@ public class Intel8088Core implements Runnable {
    // 0xFB - STI - Set Interrupt Flag
    // -------------------------------------------------------------------------
    private void OpCode_0xFB() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _registers.Flags |= 0x0200;
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
@@ -2886,7 +2568,7 @@ public class Intel8088Core implements Runnable {
    // 0x9F - LAHF - Load 8080 Flags into AH
    // -------------------------------------------------------------------------
    private void OpCode_0x9F() {
-      _clock.setClockCounter((byte) 4);
+      clock.setClockCounter((byte) 4);
       _registers.AX = (int) ((_registers.Flags << 8) | (_registers.AX & 0x00FF));
       _registers.AX = (int) (_registers.AX | 0x0200);
    }
@@ -2895,7 +2577,7 @@ public class Intel8088Core implements Runnable {
    // 0x9E - SAHF - Store AH into 8080 Flags
    // -------------------------------------------------------------------------
    private void OpCode_0x9E() {
-      _clock.setClockCounter((byte) 4);
+      clock.setClockCounter((byte) 4);
       _registers.Flags = (int) ((_registers.Flags & 0xFF00) | ((_registers.AX & 0xD500) >> 8));
    }
 
@@ -2907,7 +2589,7 @@ public class Intel8088Core implements Runnable {
    // 0xF0 - LOCK Prefix
    // -------------------------------------------------------------------------
    private void OpCode_0xF0() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _biu.orEqPrefixFlags((byte) 0x01);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
@@ -2917,7 +2599,7 @@ public class Intel8088Core implements Runnable {
    // 0xF2 - REPNZ Prefix
    // -------------------------------------------------------------------------
    private void OpCode_0xF2() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _biu.orEqPrefixFlags((byte) 0x02);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
@@ -2927,7 +2609,7 @@ public class Intel8088Core implements Runnable {
    // 0xF3 - REPZ Prefix
    // -------------------------------------------------------------------------
    private void OpCode_0xF3() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _biu.orEqPrefixFlags((byte) 0x04);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
@@ -2937,7 +2619,7 @@ public class Intel8088Core implements Runnable {
    // 0x26 - Segment Override Prefix - ES
    // -------------------------------------------------------------------------
    private void OpCode_0x26() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _biu.orEqPrefixFlags((byte) 0x10);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
@@ -2947,7 +2629,7 @@ public class Intel8088Core implements Runnable {
    // 0x2E - Segment Override Prefix - CS
    // -------------------------------------------------------------------------
    private void OpCode_0x2E() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _biu.orEqPrefixFlags((byte) 0x20);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
@@ -2957,7 +2639,7 @@ public class Intel8088Core implements Runnable {
    // 0x36 - Segment Override Prefix - SS
    // -------------------------------------------------------------------------
    private void OpCode_0x36() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _biu.orEqPrefixFlags((byte) 0x40);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
@@ -2967,7 +2649,7 @@ public class Intel8088Core implements Runnable {
    // 0x3E - Segment Override Prefix - DS
    // -------------------------------------------------------------------------
    private void OpCode_0x3E() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _biu.orEqPrefixFlags((byte) 0x80);
       _lastInstrSetPrefix = true;
       _pauseInterrupts = true;
@@ -2977,7 +2659,7 @@ public class Intel8088Core implements Runnable {
    // 0x98 - CBW - Sign extend AL into AH
    // -------------------------------------------------------------------------
    private void OpCode_0x98() {
-      _clock.setClockCounter((byte) 2);
+      clock.setClockCounter((byte) 2);
       _registers.AX = SignExtendedByte(_registers.AX);
    }
 
@@ -2985,7 +2667,7 @@ public class Intel8088Core implements Runnable {
    // 0x99 - CWD - Sign extend AX into DX
    // -------------------------------------------------------------------------
    private void OpCode_0x99() {
-      _clock.setClockCounter((byte) 5);
+      clock.setClockCounter((byte) 5);
       _registers.DX = (0x8000 & _registers.AX) > 0 ? (int) 0xFFFF : (int) 0x0000;
    }
 
@@ -2997,7 +2679,7 @@ public class Intel8088Core implements Runnable {
    // 0xCC - INT - Interrupt Type 3 - Breakpoint
    // -------------------------------------------------------------------------
    private void OpCode_0xCC() {
-      _clock.incClockCounter((byte) 1);
+      clock.incClockCounter((byte) 1);
       Interrupt_Handler((byte) 0x3);
    }
 
@@ -3006,9 +2688,9 @@ public class Intel8088Core implements Runnable {
    // -------------------------------------------------------------------------
    private void OpCode_0xCE() {
       if (Flag_o() == 0) {
-         _clock.incClockCounter((byte) 4);
+         clock.incClockCounter((byte) 4);
       } else {
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
          Interrupt_Handler((byte) 0x4);
       }
    }
@@ -3029,60 +2711,60 @@ public class Intel8088Core implements Runnable {
       switch (_regField) {
          case 0x0:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 17);
+               clock.incClockCounter((byte) 17);
             WriteBackEa(AddBytes((byte) FetchEa(), PfqFetchByte()));
             break; // # 0x80 REG[0] - ADD REG8/MEM8 , IMMED8
          case 0x1:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 17);
+               clock.incClockCounter((byte) 17);
             WriteBackEa(BooleanOr(FetchEa(), PfqFetchByte()));
             break; // # 0x80 REG[1] - OR REG8/MEM8 , IMMED8
          case 0x2:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 17);
+               clock.incClockCounter((byte) 17);
             with_carry = 1;
             WriteBackEa(AddBytes((byte) FetchEa(), PfqFetchByte()));
             break; // # 0x80 REG[2] - ADC REG8/MEM8 , IMMED8
          case 0x3:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 17);
+               clock.incClockCounter((byte) 17);
             with_carry = 1;
             WriteBackEa(SubBytes((byte) FetchEa(), PfqFetchByte()));
             break; // # 0x80 REG[3] - SBB REG8/MEM8 , IMMED8
          case 0x4:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 17);
+               clock.incClockCounter((byte) 17);
             WriteBackEa(BooleanAnd(FetchEa(), PfqFetchByte()));
             break; // # 0x80 REG[4] - AND REG8/MEM8 , IMMED8
          case 0x5:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 17);
+               clock.incClockCounter((byte) 17);
             WriteBackEa(SubBytes((byte) FetchEa(), PfqFetchByte()));
             break; // # 0x80 REG[5] - SUB REG8/MEM8 , IMMED8
          case 0x6:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 17);
+               clock.incClockCounter((byte) 17);
             WriteBackEa(BooleanXor(FetchEa(), PfqFetchByte()));
             break; // # 0x80 REG[6] - XOR REG8/MEM8 , IMMED8
          case 0x7:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 3);
+               clock.incClockCounter((byte) 3);
             else
-               _clock.incClockCounter((byte) 10);
+               clock.incClockCounter((byte) 10);
             SubBytes((byte) FetchEa(), PfqFetchByte());
             break; // # 0x80 REG[7] - CMP REG8/MEM8 , IMMED8
       }
@@ -3096,60 +2778,60 @@ public class Intel8088Core implements Runnable {
       switch (_regField) {
          case 0x0:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(AddWords(FetchEa(), PfqFetchWord()));
             break; // # 0x81 REG[0] - ADD REG16/MEM16 , IMMED16
          case 0x1:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(BooleanOr(FetchEa(), PfqFetchWord()));
             break; // # 0x81 REG[1] - OR REG16/MEM16 , IMMED16
          case 0x2:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             with_carry = 1;
             WriteBackEa(AddWords(FetchEa(), PfqFetchWord()));
             break; // # 0x81 REG[2] - ADC REG16/MEM16 , IMMED16
          case 0x3:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             with_carry = 1;
             WriteBackEa(SubWords(FetchEa(), PfqFetchWord()));
             break; // # 0x81 REG[3] - SBB REG16/MEM16 , IMMED16
          case 0x4:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(BooleanAnd(FetchEa(), PfqFetchWord()));
             break; // # 0x81 REG[4] - AND REG16/MEM16 , IMMED16
          case 0x5:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(SubWords(FetchEa(), PfqFetchWord()));
             break; // # 0x81 REG[5] - SUB REG16/MEM16 , IMMED16
          case 0x6:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(BooleanXor(FetchEa(), PfqFetchWord()));
             break; // # 0x81 REG[6] - XOR REG16/MEM16 , IMMED16
          case 0x7:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 14);
+               clock.incClockCounter((byte) 14);
             SubWords(FetchEa(), PfqFetchWord());
             break; // # 0x81 REG[7] - CMP REG16/MEM16 , IMMED16
       }
@@ -3163,60 +2845,60 @@ public class Intel8088Core implements Runnable {
       switch (_regField) {
          case 0x0:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(AddWords(FetchEa(), SignExtendedByte(PfqFetchByte())));
             break; // # 0x83 REG[0] - ADD REG16/MEM16 , IMMED8-Sign_Extended
          case 0x1:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(BooleanOr(FetchEa(), SignExtendedByte(PfqFetchByte())));
             break; // # 0x83 REG[1] - OR REG16/MEM16 , IMMED8-Sign_Extended
          case 0x2:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             with_carry = 1;
             WriteBackEa(AddWords(FetchEa(), SignExtendedByte(PfqFetchByte())));
             break; // # 0x83 REG[2] - ADC REG16/MEM16 , IMMED8-Sign_Extended
          case 0x3:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             with_carry = 1;
             WriteBackEa(SubWords(FetchEa(), SignExtendedByte(PfqFetchByte())));
             break; // # 0x83 REG[3] - SBB REG16/MEM16 , IMMED8-Sign_Extended
          case 0x4:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(BooleanAnd(FetchEa(), SignExtendedByte(PfqFetchByte())));
             break; // # 0x83 REG[4] - AND REG16/MEM16 , IMMED8-Sign_Extended
          case 0x5:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(SubWords(FetchEa(), SignExtendedByte(PfqFetchByte())));
             break; // # 0x83 REG[5] - SUB REG16/MEM16 , IMMED8-Sign_Extended
          case 0x6:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 23);
+               clock.incClockCounter((byte) 23);
             WriteBackEa(BooleanXor(FetchEa(), SignExtendedByte(PfqFetchByte())));
             break; // # 0x83 REG[6] - XOR REG16/MEM16 , IMMED8-Sign_Extended
          case 0x7:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 4);
+               clock.incClockCounter((byte) 4);
             else
-               _clock.incClockCounter((byte) 14);
+               clock.incClockCounter((byte) 14);
             SubWords(FetchEa(), SignExtendedByte(PfqFetchByte()));
             break; // # 0x83 REG[7] - CMP REG16/MEM16 , IMMED8-Sign_Extended
       }
@@ -3230,7 +2912,7 @@ public class Intel8088Core implements Runnable {
    // 0xA8 TEST - AL,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0xA8() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _wordOperation = 0;
       BooleanAnd(_registers.AX, PfqFetchByte());
    }
@@ -3239,7 +2921,7 @@ public class Intel8088Core implements Runnable {
    // 0xA9 TEST - AX,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0xA9() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _wordOperation = 1;
       BooleanAnd(_registers.AX, PfqFetchWord());
    }
@@ -3250,9 +2932,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x84() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       BooleanAnd(FetchEa(), FetchRegister(_regFieldTable));
    }
 
@@ -3262,9 +2944,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x85() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       BooleanAnd(FetchEa(), FetchRegister(_regFieldTable));
    }
 
@@ -3277,38 +2959,38 @@ public class Intel8088Core implements Runnable {
       switch (_regField) {
          case 0x0:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 5);
+               clock.incClockCounter((byte) 5);
             else
-               _clock.incClockCounter((byte) 11);
+               clock.incClockCounter((byte) 11);
             BooleanAnd(FetchEa(), PfqFetchByte());
             break; // # 0xF6 REG[0] - TEST REG8/MEM8,IMM8
          case 0x1:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 5);
+               clock.incClockCounter((byte) 5);
             else
-               _clock.incClockCounter((byte) 11);
+               clock.incClockCounter((byte) 11);
             BooleanAnd(FetchEa(), PfqFetchByte());
             break; // # 0xF6 REG[1] - TEST REG8/MEM8,IMM8 ** Duplicate **
          case 0x2:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 3);
+               clock.incClockCounter((byte) 3);
             else
-               _clock.incClockCounter((byte) 16);
+               clock.incClockCounter((byte) 16);
             WriteBackEa((int) (0xFF ^ FetchEa()));
             break; // # 0xF6 REG[2] - NOT REG8/MEM8
          case 0x3:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 3);
+               clock.incClockCounter((byte) 3);
             else
-               _clock.incClockCounter((byte) 16);
+               clock.incClockCounter((byte) 16);
             WriteBackEa(SubBytes((byte) 0x00, (byte) FetchEa()));
             break; // # 0xF6 REG[3] - NEG REG8/MEM8
 
          case 0x4:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 65);
+               clock.incClockCounter((byte) 65);
             else
-               _clock.incClockCounter((byte) 69); // # 0xF6 REG[4] - MUL incR(MEM)8
+               clock.incClockCounter((byte) 69); // # 0xF6 REG[4] - MUL incR(MEM)8
             _registers.AX = (int) (FetchEa() * (_registers.AX & 0x00FF));
             if ((_registers.AX & 0xFF00) != 0) {
                _registers.Flags |= 0x0801;
@@ -3322,9 +3004,9 @@ public class Intel8088Core implements Runnable {
 
          case 0x5:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 79);
+               clock.incClockCounter((byte) 79);
             else
-               _clock.incClockCounter((byte) 85); // # 0xF6 REG[5] - IMUL incR(MEM)8
+               clock.incClockCounter((byte) 85); // # 0xF6 REG[5] - IMUL incR(MEM)8
             _registers.AX = (int) ((short) FetchEa() * (short) (_registers.AX & 0x00FF));
             short tempAx = (short) _registers.AX;
             if (tempAx > 255) {
@@ -3342,9 +3024,9 @@ public class Intel8088Core implements Runnable {
 
          case 0x6:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 75);
+               clock.incClockCounter((byte) 75);
             else
-               _clock.incClockCounter((byte) 81); // # 0xF6 REG[6] - DIV incR(MEM)8
+               clock.incClockCounter((byte) 81); // # 0xF6 REG[6] - DIV incR(MEM)8
 
             byte localDivr = (byte) FetchEa();
             if (localDivr == 0)
@@ -3358,9 +3040,9 @@ public class Intel8088Core implements Runnable {
             break;
          case 0x7:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 97);
+               clock.incClockCounter((byte) 97);
             else
-               _clock.incClockCounter((byte) 1104); // # 0xF6 REG[7] - IDIV incR(MEM)8
+               clock.incClockCounter((byte) 1104); // # 0xF6 REG[7] - IDIV incR(MEM)8
 
             short signedLocalDivr = (short) FetchEa();
             if (signedLocalDivr == 0)
@@ -3386,38 +3068,38 @@ public class Intel8088Core implements Runnable {
       switch (_regField) {
          case 0x0:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 5);
+               clock.incClockCounter((byte) 5);
             else
-               _clock.incClockCounter((byte) 15);
+               clock.incClockCounter((byte) 15);
             BooleanAnd(FetchEa(), PfqFetchWord());
             break; // # 0xF7 REG[0] - TEST REG16/MEM16 , IMM16
          case 0x1:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 5);
+               clock.incClockCounter((byte) 5);
             else
-               _clock.incClockCounter((byte) 15);
+               clock.incClockCounter((byte) 15);
             BooleanAnd(FetchEa(), PfqFetchWord());
             break; // # 0xF7 REG[1] - TEST REG16/MEM16 , IMM16 ** Duplicate **
          case 0x2:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 3);
+               clock.incClockCounter((byte) 3);
             else
-               _clock.incClockCounter((byte) 24);
+               clock.incClockCounter((byte) 24);
             WriteBackEa((int) (0xFFFF ^ FetchEa()));
             break; // # 0xF7 REG[2] - NOT REG16/MEM16
          case 0x3:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 3);
+               clock.incClockCounter((byte) 3);
             else
-               _clock.incClockCounter((byte) 24);
+               clock.incClockCounter((byte) 24);
             WriteBackEa(SubWords(0x00, FetchEa()));
             break; // # 0xF7 REG[3] - NEG REG16/MEM16
 
          case 0x4:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 110);
+               clock.incClockCounter((byte) 110);
             else
-               _clock.incClockCounter((byte) 121); // # 0xF7 REG[4] - MUL incRE(MEM1)6
+               clock.incClockCounter((byte) 121); // # 0xF7 REG[4] - MUL incRE(MEM1)6
             localData = (int) (FetchEa() * _registers.AX);
             _registers.DX = (int) (localData >> 16);
             _registers.AX = (int) (localData & 0x0000FFFF);
@@ -3434,9 +3116,9 @@ public class Intel8088Core implements Runnable {
 
          case 0x5:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 131);
+               clock.incClockCounter((byte) 131);
             else
-               _clock.incClockCounter((byte) 137); // # 0xF7 REG[5] - IMUL incRE(MEM1)6
+               clock.incClockCounter((byte) 137); // # 0xF7 REG[5] - IMUL incRE(MEM1)6
             int fetchEaPositive;
             int fetchAxPositive;
 
@@ -3465,9 +3147,9 @@ public class Intel8088Core implements Runnable {
             break;
          case 0x6:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 143);
+               clock.incClockCounter((byte) 143);
             else
-               _clock.incClockCounter((byte) 157); // # 0xF7 REG[6] - DIV incRE(MEM1)6
+               clock.incClockCounter((byte) 157); // # 0xF7 REG[6] - DIV incRE(MEM1)6
             int localNumr = (int) ((_registers.DX << 16) | _registers.AX);
             int localDivr = FetchEa();
             if (localDivr == 0)
@@ -3480,9 +3162,9 @@ public class Intel8088Core implements Runnable {
             break;
          case 0x7:
             if (_eaIsRegister == 1)
-               _clock.incClockCounter((byte) 175);
+               clock.incClockCounter((byte) 175);
             else
-               _clock.incClockCounter((byte) 181); // # 0xF7 REG[7] - IDIV incRE(MEM1)6
+               clock.incClockCounter((byte) 181); // # 0xF7 REG[7] - IDIV incRE(MEM1)6
             int signedLocalNumr = (int) (_registers.DX << 16 | _registers.AX);
             int signedLocalDivr = FetchEa();
             if (signedLocalDivr == 0)
@@ -3500,7 +3182,7 @@ public class Intel8088Core implements Runnable {
    // 0x27 - DAA - Decimal Adjust for Addition
    // -------------------------------------------------------------------------
    private void OpCode_0x27() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       int localAl = (int) (_registers.AX & 0x00FF);
 
       if (((0x0F & localAl) > 0x09) || (Flag_a() == 1)) {
@@ -3523,7 +3205,7 @@ public class Intel8088Core implements Runnable {
    // 0x2F - DAS - Decimal Adjust for Subtraction
    // -------------------------------------------------------------------------
    private void OpCode_0x2F() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       int localAl = (int) (_registers.AX & 0x00FF);
 
       if (((0x0F & localAl) > 0x09) || (Flag_a() == 1)) {
@@ -3548,7 +3230,7 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x37() {
       byte localFlagA = Flag_a();
 
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       int localAl = (int) (_registers.AX & 0x00FF);
 
       if ((0xF & localAl) > 0x09 || localFlagA == 1) {
@@ -3572,7 +3254,7 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x3F() {
       byte localFlagA = Flag_a();
 
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       int localAl = (int) (_registers.AX & 0x00FF);
 
       if (((0xF & localAl) > 0x09) || (localFlagA == 1)) {
@@ -3594,7 +3276,7 @@ public class Intel8088Core implements Runnable {
    // [0xD4 0x0A] - AAM - ASCII Adjust for Multiply
    // -------------------------------------------------------------------------
    private void OpCode_0xD4() {
-      _clock.incClockCounter((byte) 83);
+      clock.incClockCounter((byte) 83);
       byte opCodeDivisor = PfqFetchByte();
       byte localAl = (byte) (_registers.AX & 0x00FF);
 
@@ -3609,7 +3291,7 @@ public class Intel8088Core implements Runnable {
    // [0xD5 0x0A] - AAD - ASCII Adjust for Division
    // -------------------------------------------------------------------------
    private void OpCode_0xD5() {
-      _clock.incClockCounter((byte) 60);
+      clock.incClockCounter((byte) 60);
       byte opCodeMultiplier = PfqFetchByte();
 
       byte localAh = (byte) (_registers.AX >> 8);
@@ -3624,7 +3306,7 @@ public class Intel8088Core implements Runnable {
    // 0xD7 - XLAT - Translate
    // -------------------------------------------------------------------------
    private void OpCode_0xD7() {
-      _clock.incClockCounter((byte) 11);
+      clock.incClockCounter((byte) 11);
 
       int localAl = (int) (_registers.AX & 0x00FF);
       int localAddress = (int) (_registers.BX + localAl);
@@ -3642,12 +3324,12 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0xD8() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
       else
-         _clock.incClockCounter((byte) 8);
+         clock.incClockCounter((byte) 8);
       FetchEa();
       if ((_opCodeFirstByte & 0x1) != 0)
-         _clock.incClockCounter((byte) 4); // For incW(Operation)s
+         clock.incClockCounter((byte) 4); // For incW(Operation)s
    }
 
    // -------------------------------------------------------------------------
@@ -3656,10 +3338,10 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0xE0() {
       _registers.CX--;
       if (Flag_z() == 0 && _registers.CX != 0) {
-         _clock.incClockCounter((byte) 3);
+         clock.incClockCounter((byte) 3);
          Jump_Taken8();
       } else {
-         _clock.incClockCounter((byte) 1);
+         clock.incClockCounter((byte) 1);
          Jump_Not_Taken8();
       }
    }
@@ -3671,10 +3353,10 @@ public class Intel8088Core implements Runnable {
 
       _registers.CX--;
       if (Flag_z() == 1 && _registers.CX != 0) {
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
          Jump_Taken8();
       } else {
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
          Jump_Not_Taken8();
       }
    }
@@ -3686,10 +3368,10 @@ public class Intel8088Core implements Runnable {
 
       _registers.CX--;
       if (_registers.CX != 0) {
-         _clock.incClockCounter((byte) 1);
+         clock.incClockCounter((byte) 1);
          Jump_Taken8();
       } else {
-         _clock.incClockCounter((byte) 1);
+         clock.incClockCounter((byte) 1);
          Jump_Not_Taken8();
       }
    }
@@ -3705,25 +3387,25 @@ public class Intel8088Core implements Runnable {
 
       boolean directIntr;
       do {
-         _clock.waitForFallingEdge();
-         _clock.waitForFallingEdge();
+         clock.waitForFallingEdge();
+         clock.waitForFallingEdge();
 
          // if (_deviceAdapter.IntrPin != 0 && Flag_i() == 1) direct_intr = true;
          // else direct_intr = false;
 
-         directIntr = pins.getIntrPin() != 0 && Flag_i() == 1;
-      } while (!directIntr && !_nmiLatched.IsSet() && pins.getResetPin() == 0);
+         directIntr = pins.getINTR() != 0 && Flag_i() == 1;
+      } while (!directIntr && !_nmiLatched.IsSet() && pins.getResetPin() == LOW);
 
       pins.setBusStatusPins(BusStatus.Pass);
-      _clock.waitForFallingEdge();
-      _clock.waitForFallingEdge();
+      clock.waitForFallingEdge();
+      clock.waitForFallingEdge();
    }
 
    // -------------------------------------------------------------------------
    // 0xD6 - SETALC
    // -------------------------------------------------------------------------
    private void OpCode_0xD6() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       if (Flag_c() == 0)
          _registers.AX &= 0xFF00;
       else
@@ -3734,15 +3416,15 @@ public class Intel8088Core implements Runnable {
    // 0x9B - WAIT - Wait until TEST_n is asserted or Reset asserted
    // -------------------------------------------------------------------------
    private void OpCode_0x9B() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
 
       boolean directIntr;
       do {
-         _clock.waitForFallingEdge();
+         clock.waitForFallingEdge();
          // if (_deviceAdapter.IntrPin != 0 && Flag_i() == 1) direct_intr = true;
          // else direct_intr = false;
 
-         directIntr = pins.getIntrPin() != 0 && Flag_i() == 1;
+         directIntr = pins.getINTR() != 0 && Flag_i() == 1;
       } while (!directIntr && !_nmiLatched.IsSet() && pins.getResetPin() == 0);
    }
 
@@ -3750,7 +3432,7 @@ public class Intel8088Core implements Runnable {
    // 0x8D LEA - REG16 , MEM16
    // -------------------------------------------------------------------------
    private void OpCode_0x8D() {
-      _clock.incClockCounter((byte) 2);
+      clock.incClockCounter((byte) 2);
       CalculateEa();
       WriteRegister(_regFieldTable, _eaAddress);
    }
@@ -3759,7 +3441,7 @@ public class Intel8088Core implements Runnable {
    // 0xC4 - LES - REG16 , MEM16
    // -------------------------------------------------------------------------
    private void OpCode_0xC4() {
-      _clock.incClockCounter((byte) 24);
+      clock.incClockCounter((byte) 24);
       CalculateEa();
       _wordOperation = 1;
       WriteRegister((int) (0x08 | _regField), FetchEa());
@@ -3771,7 +3453,7 @@ public class Intel8088Core implements Runnable {
    // 0xC5 - LDS - REG16 , MEM16
    // -------------------------------------------------------------------------
    private void OpCode_0xC5() {
-      _clock.incClockCounter((byte) 24);
+      clock.incClockCounter((byte) 24);
       CalculateEa();
       _wordOperation = 1;
       WriteRegister((int) (0x08 | _regField), FetchEa());
@@ -3791,9 +3473,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x88() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
       else
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       WriteBackEa(FetchRegister(_regFieldTable));
    }
 
@@ -3803,9 +3485,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x89() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       WriteBackEa(FetchRegister(_regFieldTable));
    }
 
@@ -3815,9 +3497,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x8A() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
       else
-         _clock.incClockCounter((byte) 8);
+         clock.incClockCounter((byte) 8);
       WriteRegister(_regFieldTable, FetchEa());
    }
 
@@ -3827,9 +3509,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x8B() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
       else
-         _clock.incClockCounter((byte) 12);
+         clock.incClockCounter((byte) 12);
       WriteRegister(_regFieldTable, FetchEa());
    }
 
@@ -3839,9 +3521,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x8C() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
       _wordOperation = 1;
       _rmFieldTable = (byte) (_rmField | 0x8);
       WriteBackEa(FetchSegReg(_regField));
@@ -3853,9 +3535,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x8E() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 2);
+         clock.incClockCounter((byte) 2);
       else
-         _clock.incClockCounter((byte) 12);
+         clock.incClockCounter((byte) 12);
       _wordOperation = 1;
       _rmFieldTable = (byte) (_rmField | 0x8);
       WriteSegReg(_regField, FetchEa());
@@ -3865,7 +3547,7 @@ public class Intel8088Core implements Runnable {
    // # 0xA0 - MOV AL , MEM8
    // -------------------------------------------------------------------------
    private void OpCode_0xA0() {
-      _clock.incClockCounter((byte) 10);
+      clock.incClockCounter((byte) 10);
       // WriteRegister(REG_AL,
       // Biu_Operation(BiuOperations.MemReadByte, SEGMENT_OVERRIDABLE_TRUE,
       // SEGMENT_DS, PfqFetchWord(), 0x00));
@@ -3876,7 +3558,7 @@ public class Intel8088Core implements Runnable {
    // # 0xA1 - MOV AX , MEM16
    // -------------------------------------------------------------------------
    private void OpCode_0xA1() {
-      _clock.incClockCounter((byte) 14);
+      clock.incClockCounter((byte) 14);
       // _registers.AX = Biu_Operation(BiuOperations.MemReadWord,
       // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, PfqFetchWord(), 0x00);
       _registers.AX = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord());
@@ -3886,7 +3568,7 @@ public class Intel8088Core implements Runnable {
    // # 0xA2 - MOV MEM8 , AL
    // -------------------------------------------------------------------------
    private void OpCode_0xA2() {
-      _clock.incClockCounter((byte) 10);
+      clock.incClockCounter((byte) 10);
       // Biu_Operation(BiuOperations.MemWriteByte, SEGMENT_OVERRIDABLE_TRUE,
       // SEGMENT_DS, PfqFetchWord(), _registers.AX);
       byte registerAl = (byte) (_registers.AX & 0x00FF);
@@ -3897,7 +3579,7 @@ public class Intel8088Core implements Runnable {
    // # 0xA2 - MOV MEM16 , AX
    // -------------------------------------------------------------------------
    private void OpCode_0xA3() {
-      _clock.incClockCounter((byte) 14);
+      clock.incClockCounter((byte) 14);
       // Biu_Operation(BiuOperations.MemWriteWord, SEGMENT_OVERRIDABLE_TRUE,
       // SEGMENT_DS, PfqFetchWord(), _registers.AX);
       _biu.writeMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, PfqFetchWord(), _registers.AX);
@@ -3909,9 +3591,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0xC6() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 4);
+         clock.incClockCounter((byte) 4);
       else
-         _clock.incClockCounter((byte) 10);
+         clock.incClockCounter((byte) 10);
       WriteBackEa(PfqFetchByte());
    }
 
@@ -3921,9 +3603,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0xC7() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 4);
+         clock.incClockCounter((byte) 4);
       else
-         _clock.incClockCounter((byte) 14);
+         clock.incClockCounter((byte) 14);
       WriteBackEa(PfqFetchWord());
    }
 
@@ -3935,7 +3617,7 @@ public class Intel8088Core implements Runnable {
    // [0xB0 0xdd] - MOV AL,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0xB0() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.AX = ((0xFF00 & _registers.AX) | PfqFetchByte());
    }
 
@@ -3943,7 +3625,7 @@ public class Intel8088Core implements Runnable {
    // [0xB1 0xdd] - MOV CL,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0xB1() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.CX = ((0xFF00 & _registers.CX) | PfqFetchByte());
    }
 
@@ -3951,7 +3633,7 @@ public class Intel8088Core implements Runnable {
    // [0xB2 0xdd] - MOV DL,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0xB2() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.DX = ((0xFF00 & _registers.DX) | PfqFetchByte());
    }
 
@@ -3959,7 +3641,7 @@ public class Intel8088Core implements Runnable {
    // [0xB3 0xdd] - MOV BL,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0xB3() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.BX = ((0xFF00 & _registers.BX) | PfqFetchByte());
    }
 
@@ -3967,7 +3649,7 @@ public class Intel8088Core implements Runnable {
    // [0xB4 0xdd] - MOV AH,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0xB4() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.AX = ((PfqFetchByte() << 8) | (0x00FF & _registers.AX));
    }
 
@@ -3975,7 +3657,7 @@ public class Intel8088Core implements Runnable {
    // [0xB5 0xdd] - MOV CH,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0xB5() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.CX = ((PfqFetchByte() << 8) | (0x00FF & _registers.CX));
    }
 
@@ -3983,7 +3665,7 @@ public class Intel8088Core implements Runnable {
    // [0xB6 0xdd] - MOV DH,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0xB6() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.DX = ((PfqFetchByte() << 8) | (0x00FF & _registers.DX));
    }
 
@@ -3991,7 +3673,7 @@ public class Intel8088Core implements Runnable {
    // [0xB7 0xdd] - MOV BH,IMM8
    // -------------------------------------------------------------------------
    private void OpCode_0xB7() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.BX = ((PfqFetchByte() << 8) | (0x00FF & _registers.BX));
    }
 
@@ -3999,7 +3681,7 @@ public class Intel8088Core implements Runnable {
    // [0xB8 0xLO xHI] - MOV AX,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0xB8() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.AX = PfqFetchWord();
    }
 
@@ -4007,7 +3689,7 @@ public class Intel8088Core implements Runnable {
    // [0xB9 0xLO xHI] - MOV CX,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0xB9() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.CX = PfqFetchWord();
    }
 
@@ -4015,7 +3697,7 @@ public class Intel8088Core implements Runnable {
    // [0xBA 0xLO xHI] - MOV DX,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0xBA() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.DX = PfqFetchWord();
    }
 
@@ -4023,7 +3705,7 @@ public class Intel8088Core implements Runnable {
    // [0xBB 0xLO xHI] - MOV BX,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0xBB() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.BX = PfqFetchWord();
    }
 
@@ -4031,7 +3713,7 @@ public class Intel8088Core implements Runnable {
    // [0xBC 0xLO xHI] - MOV SP,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0xBC() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.SP = PfqFetchWord();
    }
 
@@ -4039,7 +3721,7 @@ public class Intel8088Core implements Runnable {
    // [0xBD 0xLO xHI] - MOV BP,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0xBD() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.BP = PfqFetchWord();
    }
 
@@ -4047,7 +3729,7 @@ public class Intel8088Core implements Runnable {
    // [0xBE 0xLO xHI] - MOV SI,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0xBE() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.SI = PfqFetchWord();
    }
 
@@ -4055,7 +3737,7 @@ public class Intel8088Core implements Runnable {
    // [0xBF 0xLO xHI] - MOV DI,IMM16
    // -------------------------------------------------------------------------
    private void OpCode_0xBF() {
-      _clock.incClockCounter((byte) 4);
+      clock.incClockCounter((byte) 4);
       _registers.DI = PfqFetchWord();
    }
 
@@ -4069,9 +3751,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x86() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 4);
+         clock.incClockCounter((byte) 4);
       else
-         _clock.incClockCounter((byte) 17);
+         clock.incClockCounter((byte) 17);
       byte temp8 = (byte) FetchEa();
       WriteBackEa(FetchRegister(_regFieldTable));
       WriteRegister(_regFieldTable, temp8);
@@ -4083,9 +3765,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0x87() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 4);
+         clock.incClockCounter((byte) 4);
       else
-         _clock.incClockCounter((byte) 25);
+         clock.incClockCounter((byte) 25);
       temp16 = FetchEa();
       WriteBackEa(FetchRegister(_regFieldTable));
       WriteRegister(_regFieldTable, temp16);
@@ -4095,7 +3777,7 @@ public class Intel8088Core implements Runnable {
    // 0x91 - XCHG - Exchange Accumulator and CX
    // -------------------------------------------------------------------------
    private void OpCode_0x91() {
-      _clock.incClockCounter((byte) 3);
+      clock.incClockCounter((byte) 3);
       temp16 = _registers.AX;
       _registers.AX = _registers.CX;
       _registers.CX = temp16;
@@ -4105,7 +3787,7 @@ public class Intel8088Core implements Runnable {
    // 0x92 - XCHG - Exchange Accumulator and DX
    // -------------------------------------------------------------------------
    private void OpCode_0x92() {
-      _clock.incClockCounter((byte) 3);
+      clock.incClockCounter((byte) 3);
       temp16 = _registers.AX;
       _registers.AX = _registers.DX;
       _registers.DX = temp16;
@@ -4115,7 +3797,7 @@ public class Intel8088Core implements Runnable {
    // 0x93 - XCHG - Exchange Accumulator and BX
    // -------------------------------------------------------------------------
    private void OpCode_0x93() {
-      _clock.incClockCounter((byte) 3);
+      clock.incClockCounter((byte) 3);
       temp16 = _registers.AX;
       _registers.AX = _registers.BX;
       _registers.BX = temp16;
@@ -4125,7 +3807,7 @@ public class Intel8088Core implements Runnable {
    // 0x94 - XCHG - Exchange Accumulator and SP
    // -------------------------------------------------------------------------
    private void OpCode_0x94() {
-      _clock.incClockCounter((byte) 3);
+      clock.incClockCounter((byte) 3);
       temp16 = _registers.AX;
       _registers.AX = _registers.SP;
       _registers.SP = temp16;
@@ -4135,7 +3817,7 @@ public class Intel8088Core implements Runnable {
    // 0x95 - XCHG - Exchange Accumulator and BP
    // -------------------------------------------------------------------------
    private void OpCode_0x95() {
-      _clock.incClockCounter((byte) 3);
+      clock.incClockCounter((byte) 3);
       temp16 = _registers.AX;
       _registers.AX = _registers.BP;
       _registers.BP = temp16;
@@ -4145,7 +3827,7 @@ public class Intel8088Core implements Runnable {
    // 0x96 - XCHG - Exchange Accumulator and SI
    // -------------------------------------------------------------------------
    private void OpCode_0x96() {
-      _clock.incClockCounter((byte) 3);
+      clock.incClockCounter((byte) 3);
       temp16 = _registers.AX;
       _registers.AX = _registers.SI;
       _registers.SI = temp16;
@@ -4155,7 +3837,7 @@ public class Intel8088Core implements Runnable {
    // 0x97 - XCHG - Exchange Accumulator and DI
    // -------------------------------------------------------------------------
    private void OpCode_0x97() {
-      _clock.incClockCounter((byte) 3);
+      clock.incClockCounter((byte) 3);
       temp16 = _registers.AX;
       _registers.AX = _registers.DI;
       _registers.DI = temp16;
@@ -4175,7 +3857,7 @@ public class Intel8088Core implements Runnable {
          old_msb = (byte) ((local_data & 0x80) >> 7);
          local_data = (byte) ((local_data << 1) | old_msb);
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       byte new_msb = (byte) ((local_data & 0x80) >> 7);
@@ -4193,7 +3875,7 @@ public class Intel8088Core implements Runnable {
          old_msb = (byte) ((local_data & 0x8000) >> 15);
          local_data = (int) ((local_data << 1) | old_msb);
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       byte new_msb = (byte) ((local_data & 0x8000) >> 15);
@@ -4209,7 +3891,7 @@ public class Intel8088Core implements Runnable {
          byte old_lsb = (byte) (local_data << 7);
          local_data = (byte) (old_lsb | (local_data >> 1));
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       byte new_msb = (byte) ((local_data & 0x80) >> 7);
@@ -4225,7 +3907,7 @@ public class Intel8088Core implements Runnable {
          int old_lsb = (int) (local_data << 15);
          local_data = (int) (old_lsb | (local_data >> 1));
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       int new_msb = (int) ((local_data & 0x8000) >> 15);
@@ -4243,7 +3925,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_msb; // Set C flag
          local_data = (byte) ((local_data << 1) | tempCf);
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       byte new_msb = (byte) ((local_data & 0x80) >> 7);
@@ -4260,7 +3942,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_msb; // Set C flag
          local_data = (int) ((local_data << 1) | tempCf);
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       int new_msb = (byte) ((local_data & 0x8000) >> 15);
@@ -4277,7 +3959,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_lsb; // Set C flag
          local_data = (byte) (tempCf | (local_data >> 1));
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       if ((local_data & 0x80) != ((local_data & 0x40) << 1))
@@ -4293,7 +3975,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_lsb; // Set C flag
          local_data = (int) (tempCf | (local_data >> 1));
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       if ((local_data & 0x8000) != ((local_data & 0x4000) << 1))
@@ -4308,7 +3990,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_msb; // Set C flag
          local_data = (byte) (local_data << 1); // Perform the shift
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       byte new_msb = (byte) ((local_data & 0x80) >> 7);
@@ -4325,7 +4007,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_msb; // Set C flag
          local_data = (int) (local_data << 1); // Perform the shift
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       int new_msb = (int) ((local_data & 0x8000) >> 15);
@@ -4342,7 +4024,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_lsb; // Set C flag
          local_data = (byte) (local_data >> 1);
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four clocks per bit
+         clock.incClockCounter((byte) 4); // Add four clocks per bit
       }
 
       if ((local_data & 0x80) != ((local_data & 0x40) << 1))
@@ -4358,7 +4040,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_lsb; // Set C flag
          local_data = (int) (local_data >> 1);
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       if ((local_data & 0x8000) != ((local_data & 0x4000) << 1))
@@ -4375,7 +4057,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_lsb; // Set C flag
          local_data = (byte) (old_msb | (local_data >> 1));
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       if ((local_data & 0x80) != ((local_data & 0x40) << 1))
@@ -4392,7 +4074,7 @@ public class Intel8088Core implements Runnable {
          _registers.Flags |= old_lsb; // Set C flag
          local_data = (int) (old_msb | (local_data >> 1));
          local_count--;
-         _clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
+         clock.incClockCounter((byte) 4); // Add four incclocks (bi)t
       }
 
       if ((local_data & 0x8000) != ((local_data & 0x4000) << 1))
@@ -4407,9 +4089,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0xD0() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.setClockCounter(_clock.getClockCounter() - 2);
+         clock.setClockCounter(clock.getClockCounter() - 2);
       else
-         _clock.incClockCounter((byte) 13);
+         clock.incClockCounter((byte) 13);
 
       switch (_regField) {
          case 0x0:
@@ -4445,9 +4127,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0xD1() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.setClockCounter(_clock.getClockCounter() - 2);
+         clock.setClockCounter(clock.getClockCounter() - 2);
       else
-         _clock.incClockCounter((byte) 21);
+         clock.incClockCounter((byte) 21);
 
       switch (_regField) {
          case 0x0:
@@ -4483,9 +4165,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0xD2() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 8);
+         clock.incClockCounter((byte) 8);
       else
-         _clock.incClockCounter((byte) 20);
+         clock.incClockCounter((byte) 20);
 
       switch (_regField) {
          case 0x0:
@@ -4521,9 +4203,9 @@ public class Intel8088Core implements Runnable {
    private void OpCode_0xD3() {
       CalculateEa();
       if (_eaIsRegister == 1)
-         _clock.incClockCounter((byte) 8);
+         clock.incClockCounter((byte) 8);
       else
-         _clock.incClockCounter((byte) 28);
+         clock.incClockCounter((byte) 28);
 
       switch (_regField) {
          case 0x0:
@@ -4579,9 +4261,9 @@ public class Intel8088Core implements Runnable {
       // works
       // the same as REP (OpCode 0xF3)
       if (Prefix_repz() == 0 && Prefix_repnz() == 0)
-         _clock.incClockCounter((byte) 1);
+         clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte) 9); // Add initial clock counts
+         clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if (Prefix_repz() == 1 || Prefix_repnz() == 1) {
@@ -4595,7 +4277,7 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 17); // Add clocks per loop iteration  
+         clock.incClockCounter((byte) 17); // Add clocks per loop iteration  
 
          // var localData = Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
@@ -4606,7 +4288,7 @@ public class Intel8088Core implements Runnable {
          // SEGMENT_ES, _registers.DI, localData);
          _biu.writeMemoryByte(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, localData);
 
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4633,9 +4315,9 @@ public class Intel8088Core implements Runnable {
       // works
       // the same as REP (OpCode 0xF3)
       if (Prefix_repz() == 0 && Prefix_repnz() == 0)
-         _clock.incClockCounter((byte) 1);
+         clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte) 9); // Add initial clock counter
+         clock.incClockCounter((byte) 9); // Add initial clock counter
 
       do {
          if (Prefix_repz() == 1 || Prefix_repnz() == 1) {
@@ -4651,7 +4333,7 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 17); // Add clocks per loop iteration
+         clock.incClockCounter((byte) 17); // Add clocks per loop iteration
 
          // var localData = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
@@ -4662,7 +4344,7 @@ public class Intel8088Core implements Runnable {
          // SEGMENT_ES, _registers.DI, localData);
          _biu.writeMemoryWord(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, localData);
 
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && (Flag_i()) != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && (Flag_i()) != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4685,9 +4367,9 @@ public class Intel8088Core implements Runnable {
       byte interruptPending = 0;
 
       if ((Prefix_repz() == 1) || (Prefix_repnz() == 1))
-         _clock.incClockCounter((byte) 1);
+         clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte) 9); // Add initial inccl(count)s
+         clock.incClockCounter((byte) 9); // Add initial inccl(count)s
 
       do {
          if (Prefix_repz() == 1 || Prefix_repnz() == 1) {
@@ -4702,7 +4384,7 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 22); // Add clocks per loop iteration
+         clock.incClockCounter((byte) 22); // Add clocks per loop iteration
          // var localData1 = (byte)Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
          byte localData1 = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
@@ -4712,7 +4394,7 @@ public class Intel8088Core implements Runnable {
          byte localData2 = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
 
          SubBytes(localData1, localData2); // Perform comparison which sets Flags
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4735,9 +4417,9 @@ public class Intel8088Core implements Runnable {
       byte interruptPending = 0;
 
       if (Prefix_repz() == 1 || Prefix_repnz() == 1)
-         _clock.incClockCounter((byte) 1);
+         clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte) 9); // Add initial clock counts
+         clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if ((Prefix_repz() == 1) || (Prefix_repnz() == 1)) {
@@ -4752,7 +4434,7 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 22); // Add clocks per loop iteration
+         clock.incClockCounter((byte) 22); // Add clocks per loop iteration
          // ushort localData1 = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
          int localData1 = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
@@ -4762,7 +4444,7 @@ public class Intel8088Core implements Runnable {
          int localData2 = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
 
          SubWords(localData1, localData2); // Perform comparison which sets Flags
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4785,9 +4467,9 @@ public class Intel8088Core implements Runnable {
       byte interruptPending = 0;
 
       if (Prefix_repz() == 0)
-         _clock.incClockCounter((byte) 1);
+         clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte) 9); // Add initial clock counts
+         clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if (Prefix_repz() == 1) {
@@ -4802,13 +4484,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 10); // Add clocks per loop iteration
+         clock.incClockCounter((byte) 10); // Add clocks per loop iteration
          // Biu_Operation(BiuOperations.MemWriteByte, SEGMENT_OVERRIDABLE_FALSE,
          // SEGMENT_ES, _registers.DI, _registers.AX); // Write AL data to the ES:DI
          // Address
          byte registerAl = (byte) (_registers.AX & 0x00FF);
          _biu.writeMemoryByte(SegmentOverridableFalse, SegmentRegs.ES, _registers.DI, registerAl);
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4829,9 +4511,9 @@ public class Intel8088Core implements Runnable {
       byte interruptPending = 0;
 
       if (Prefix_repz() == 0)
-         _clock.incClockCounter((byte) 1);
+         clock.incClockCounter((byte) 1);
       else
-         _clock.incClockCounter((byte) 9); // Add initial clock counts
+         clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if (Prefix_repz() == 1) {
@@ -4846,7 +4528,7 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 10); // Add clocks per loop iteration
+         clock.incClockCounter((byte) 10); // Add clocks per loop iteration
          // Biu_Operation(BiuOperations.MemWriteWord, SEGMENT_OVERRIDABLE_FALSE,
          // SEGMENT_ES, _registers.DI, _registers.AX); // Write AL data to the ES:DI
          // Address
@@ -4854,7 +4536,7 @@ public class Intel8088Core implements Runnable {
                                                                                                       // to the ES:DI
                                                                                                       // Address
 
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4875,9 +4557,9 @@ public class Intel8088Core implements Runnable {
       byte interruptPending = 0;
 
       if (Prefix_repz() == 0)
-         _clock.incClockCounter((byte) 0);
+         clock.incClockCounter((byte) 0);
       else
-         _clock.incClockCounter((byte) 9); // Add initial clock counts
+         clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if (Prefix_repz() == 1) {
@@ -4891,13 +4573,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 12); // Add clocks per loop iteration
+         clock.incClockCounter((byte) 12); // Add clocks per loop iteration
          // var localData = Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
          byte localData = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
 
          WriteRegister(REG_AL, localData); // Write data to AL
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4918,9 +4600,9 @@ public class Intel8088Core implements Runnable {
       byte interruptPending = 0;
 
       if (Prefix_repz() == 0)
-         _clock.incClockCounter((byte) 0);
+         clock.incClockCounter((byte) 0);
       else
-         _clock.incClockCounter((byte) 9); // Add initial clock counts
+         clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if (Prefix_repz() == 1) {
@@ -4935,13 +4617,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 12); // Add clocks per loop iteration
+         clock.incClockCounter((byte) 12); // Add clocks per loop iteration
          // ushort localData = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_DS, _registers.SI, 0x00);
          int localData = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.DS, _registers.SI);
 
          _registers.AX = localData; // Write data to AX
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -4962,9 +4644,9 @@ public class Intel8088Core implements Runnable {
       byte interruptPending = 0;
 
       if ((Prefix_repz() == 1) || (Prefix_repnz() == 1))
-         _clock.incClockCounter((byte) 0);
+         clock.incClockCounter((byte) 0);
       else
-         _clock.incClockCounter((byte) 9); // Add initial clock counts
+         clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if ((Prefix_repz() == 1) || (Prefix_repnz() == 1)) {
@@ -4978,13 +4660,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 15); // Add clocks per loop iteration
+         clock.incClockCounter((byte) 15); // Add clocks per loop iteration
          // var localData = (byte)Biu_Operation(BiuOperations.MemReadByte,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_ES, _registers.DI, 0x00);
          byte localData = _biu.readMemoryByte(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
 
          SubBytes((byte) (_registers.AX & 0x00FF), localData); // Perform comparison which sets Flags
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -5005,9 +4687,9 @@ public class Intel8088Core implements Runnable {
       byte interruptPending = 0;
 
       if ((Prefix_repz() == 1) || (Prefix_repnz() == 1))
-         _clock.incClockCounter((byte) 9);
+         clock.incClockCounter((byte) 9);
       else
-         _clock.incClockCounter((byte) 9); // Add initial clock counts
+         clock.incClockCounter((byte) 9); // Add initial clock counts
 
       do {
          if ((Prefix_repz() == 1) || (Prefix_repnz() == 1)) {
@@ -5021,13 +4703,13 @@ public class Intel8088Core implements Runnable {
             _registers.CX--;
          }
 
-         _clock.incClockCounter((byte) 15); // Add clocks per loop iteration
+         clock.incClockCounter((byte) 15); // Add clocks per loop iteration
          // ushort localData = Biu_Operation(BiuOperations.MemReadWord,
          // SEGMENT_OVERRIDABLE_TRUE, SEGMENT_ES, _registers.DI, 0x00);
          int localData = _biu.readMemoryWord(SegmentOverridableTrue, SegmentRegs.ES, _registers.DI);
 
          SubWords(_registers.AX, localData); // Perform comparison which sets Flags
-         if (_nmiLatched.IsSet() || (pins.getIntrPin() != 0 && Flag_i() != 0))
+         if (_nmiLatched.IsSet() || (pins.getINTR() != 0 && Flag_i() != 0))
             interruptPending = 1;
          else
             interruptPending = 0;
@@ -5834,27 +5516,12 @@ public class Intel8088Core implements Runnable {
 
       // Stay here until RESET is de-asserted
       while (pins.getResetPin() != 0) {
-         _clock.waitForRisingEdge();
-         _clock.waitForFallingEdge();
+         clock.waitForFallingEdge();
       }
-
-      _clock.waitForFallingEdge(); // Wait 7 clocks total before beginning to fetch instructions
-      _clock.waitForFallingEdge();
-      _clock.waitForFallingEdge();
-
-      pins.setBusStatusPins(BusStatus.Pass);
-
-      _clock.waitForFallingEdge();
-      _clock.waitForFallingEdge();
-      _clock.waitForFallingEdge();
-      _clock.waitForFallingEdge();
-      _clock.waitForFallingEdge();
-      _clock.waitForFallingEdge();
-      _clock.waitForFallingEdge();
 
       _nmiLatched.Clear(); // Debounce NMI
 
-      _clock.setClockCounter(10); // Debounce prefixes and cycle counter
+      clock.setClockCounter(10); // Debounce prefixes and cycle counter
       _lastInstrSetPrefix = false;
       _pauseInterrupts = false;
 
@@ -5868,8 +5535,21 @@ public class Intel8088Core implements Runnable {
       _pfqInAddress = 0;
       prefetch_queue_count = 0;
 
-      _clock.waitForFallingEdge();
+      // Wait 7 clocks total before beginning to fetch instructions
+      clock.waitForFallingEdge();
+      clock.waitForFallingEdge();
+      clock.waitForFallingEdge();
+      clock.waitForFallingEdge();
+      clock.waitForFallingEdge();
+      clock.waitForFallingEdge();
+      clock.waitForFallingEdge();
 
+      pins.setBusStatusPins(BusStatus.Pass);
+      pins.setRdPin(HIGH);
+      pins.setAddrBusPins(0xFFFF0);
+      pins.setLockPin(LOW);
+      pins.setQueueStatusPins((byte)0);
+      pins.setSS0Pin(HIGH);
       _instLogger.trace("<-- Reset sequence");
    }
 
@@ -5878,34 +5558,29 @@ public class Intel8088Core implements Runnable {
    // -------------------------------------------------
    @Override
    public void run() {
-      _instLogger.trace("---> Main loop");
-
-      // for (int i = 0; i <= 32; i++) {
-      //    _clock.waitForFallingEdge();
-      // }
-
-      _clock.waitForFallingEdge();
+      _instLogger.info("---> Main loop");
 
       _pfqInAddress = _registers.IP;
       prefetch_queue_count = 0;
 
+      clock.waitForFallingEdge();
       ResetSequence();
 
       while (true) {
          // clockCounter = 0;
-         if (pins.getResetPin() != 0)
+         if (pins.getResetPin() == HIGH)
             ResetSequence();
 
          // Wait for cycle counter to expire before processing traps or next instruction
-         if (_clock.getClockCounter() > 0) {
-            _clock.waitForFallingEdge();
+         if (clock.getClockCounter() > 0) {
+            clock.waitForFallingEdge();
          }
 
          // Don't poll for interrupts between a Prefixes and instructions
-         if (_clock.getClockCounter() == 0 && !_pauseInterrupts) {
+         if (clock.getClockCounter() == 0 && !_pauseInterrupts) {
             if (_nmiLatched.IsSet()) {
                NmiHandler();
-            } else if (pins.getIntrPin() != 0 && Flag_i() != 0) {
+            } else if (pins.getINTR() == HIGH && Flag_i() != 0) {
                IntrHandler();
             } else if (Flag_t() != 0) {
                TrapHandler();
@@ -5914,7 +5589,7 @@ public class Intel8088Core implements Runnable {
 
          // Process new instruction when previous instruction's cycle counter has expired
          // Debounce prefixes after a non-prefix instruction is executed
-         if (_clock.getClockCounter() == 0) {
+         if (clock.getClockCounter() == 0) {
             _lastInstrSetPrefix = false;
             _pauseInterrupts = false;
             ExecuteNewInstr();

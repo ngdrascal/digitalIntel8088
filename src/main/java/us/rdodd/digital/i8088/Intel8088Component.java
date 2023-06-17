@@ -79,6 +79,7 @@ public class Intel8088Component extends Node implements Element {
 
    private long clkLastValue = 0;
 
+   private boolean dataBusIsOutput = false;
    private static Intel8088Core intel8088;
    private static Thread i8088Thread;
    private static int threadCount = 0;
@@ -142,7 +143,10 @@ public class Intel8088Component extends Node implements Element {
       Registers registers = new Registers();
       BusInterfaceUnitIntf biu = new BusInterfaceUnit(clock, registers, internalPins);
 
+      if (intel8088 != null)
+         intel8088 = null;
       intel8088 = new Intel8088Core(clock, registers, biu, nmiLatch, internalPins);
+
       if (i8088Thread != null) {
          i8088Thread.interrupt();
          i8088Thread = null;
@@ -165,6 +169,17 @@ public class Intel8088Component extends Node implements Element {
       devicePins.setRESET((byte) pinReset.getValue());
       devicePins.setREADY((byte) pinReady.getValue());
       devicePins.setTEST((byte) pinTest.getValue());
+
+      if (true) {
+         devicePins.setAD7((byte) pinAD7.getValue());
+         devicePins.setAD6((byte) pinAD6.getValue());
+         devicePins.setAD5((byte) pinAD5.getValue());
+         devicePins.setAD4((byte) pinAD4.getValue());
+         devicePins.setAD3((byte) pinAD3.getValue());
+         devicePins.setAD2((byte) pinAD2.getValue());
+         devicePins.setAD1((byte) pinAD1.getValue());
+         devicePins.setAD0((byte) pinAD0.getValue());
+      }
 
       // set the clock last because it advances the simulation
       byte clkCurValue = (byte) pinClk.getValue();
@@ -194,15 +209,26 @@ public class Intel8088Component extends Node implements Element {
       pinA10.setValue(devicePins.getA10());
       pinA9.setValue(devicePins.getA9());
       pinA8.setValue(devicePins.getA8());
-      pinAD7.setValue(devicePins.getAD7());
-      pinAD6.setValue(devicePins.getAD6());
-      pinAD5.setValue(devicePins.getAD5());
-      pinAD4.setValue(devicePins.getAD4());
-      pinAD3.setValue(devicePins.getAD3());
-      pinAD2.setValue(devicePins.getAD2());
-      pinAD1.setValue(devicePins.getAD1());
-      pinAD0.setValue(devicePins.getAD0());
 
+      if (dataBusIsOutput) {
+         pinAD7.setValue(devicePins.getAD7());
+         pinAD6.setValue(devicePins.getAD6());
+         pinAD5.setValue(devicePins.getAD5());
+         pinAD4.setValue(devicePins.getAD4());
+         pinAD3.setValue(devicePins.getAD3());
+         pinAD2.setValue(devicePins.getAD2());
+         pinAD1.setValue(devicePins.getAD1());
+         pinAD0.setValue(devicePins.getAD0());
+      } else {
+         pinAD7.setToHighZ();
+         pinAD6.setToHighZ();
+         pinAD5.setToHighZ();
+         pinAD4.setToHighZ();
+         pinAD3.setToHighZ();
+         pinAD2.setToHighZ();
+         pinAD1.setToHighZ();
+         pinAD0.setToHighZ();
+      }
       pinQs1.setValue(devicePins.getQS1());
       pinQs0.setValue(devicePins.getQS0());
 

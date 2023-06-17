@@ -17,19 +17,35 @@ public interface PinsExternalIntf {
 
    byte getAD7();
 
+   void setAD7(byte value);
+
    byte getAD6();
+
+   void setAD6(byte value);
 
    byte getAD5();
 
+   void setAD5(byte value);
+
    byte getAD4();
+
+   void setAD4(byte value);
 
    byte getAD3();
 
+   void setAD3(byte value);
+
    byte getAD2();
+
+   void setAD2(byte value);
 
    byte getAD1();
 
+   void setAD1(byte value);
+
    byte getAD0();
+
+   void setAD0(byte value);
 
    void setNMI(byte value);
 
@@ -78,5 +94,4 @@ public interface PinsExternalIntf {
    byte getA16();
 
    byte getA15();
-
 }

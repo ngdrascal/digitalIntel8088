@@ -11,11 +11,13 @@ public interface PinsInternalIntf {
 
    void setSegRegPins(byte value);
 
-   byte getIntrPin();
+   byte getINTR();
 
-   byte getNmiPin();
+   byte getNMI();
 
    void setLockPin(byte value);
+
+   void setQueueStatusPins(byte value);
 
    byte getClkPin();
 
@@ -24,4 +26,6 @@ public interface PinsInternalIntf {
    byte getReadyPin();
 
    void setRdPin(byte value);
+
+   void setSS0Pin(byte value);
 }

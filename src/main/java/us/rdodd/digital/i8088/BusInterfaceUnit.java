@@ -13,6 +13,9 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
    private boolean assertLock;
    private byte prefixFlags;
 
+   private final byte LOW = 0;
+   private final byte HIGH = 1;
+
    public BusInterfaceUnit(ClockIntf clock, Registers registers, PinsInternalIntf pins) {
       this.clock = clock;
       this.registers = registers;
@@ -209,14 +212,14 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
       // More likely to get POST error 101 with this code
       if (assertLock) {
-         pins.setLockPin((byte) 0x0);
+         pins.setLockPin(LOW);
          assertLock = false;
       } else {
-         pins.setLockPin((byte) 0x1);
+         pins.setLockPin(HIGH);
       }
 
       if (busStatus.IsReadOperation()) {
-         pins.setRdPin((byte) 0);
+         pins.setRdPin(LOW);
       } else {
          pins.setDataBusPins(writeData);
       }
@@ -228,7 +231,7 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
       do {
          clock.waitForFallingEdge();
          clkLogger.trace("----T3----");
-      } while (pins.getReadyPin() == 0);
+      } while (pins.getReadyPin() == LOW);
 
       pins.setBusStatusPins(BusStatus.Pass);
 
@@ -239,7 +242,7 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
       byte result = busStatus.IsReadOperation() ? pins.getDataBusPins() : (byte) 0xEE;
 
-      pins.setRdPin((byte) 1);
+      pins.setRdPin(HIGH);
 
       return result;
    }
