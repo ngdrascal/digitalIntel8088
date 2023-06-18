@@ -23,6 +23,9 @@ public class Clock implements ClockIntf {
    private EdgeDirection lastEdgeDir;
    private Queue<Action> actionQueue;
 
+   private final byte LOW = 0;
+   private final byte HIGH = 1;
+
    public Clock(PinsInternalIntf pins, BitLatchIntf nmiLatch) {
       this.pins = pins;
       this.nmiLatch = nmiLatch;
@@ -95,11 +98,11 @@ public class Clock implements ClockIntf {
 
    public void waitForRisingEdge() {
       // First ensure clock is at a low level
-      while (pins.getClkPin() == 1) {
+      while (pins.getCLK() != LOW) {
       }
 
       // Then poll for the first instance where clock is not low
-      while (pins.getClkPin() == 0) {
+      while (pins.getCLK() != HIGH) {
       }
    }
 
@@ -109,18 +112,18 @@ public class Clock implements ClockIntf {
          // yet still allowing the prefetch queue to fill
          clockCounter--;
 
-      if (lastNmi == 0 && currentNmi != 0)
+      if (lastNmi == LOW && currentNmi == HIGH)
          // Latch rising edge of NMI
          nmiLatch.Set();
 
       lastNmi = currentNmi;
 
       // First ensure clock is at a high level
-      while (pins.getClkPin() != 1) {
+      while (pins.getCLK() != HIGH) {
       }
 
       // Then poll for the first instance where clock is not high
-      while (pins.getClkPin() != 0) {
+      while (pins.getCLK() != LOW) {
       }
 
       // Store slightly-delayed version of GPIO6 in a global register

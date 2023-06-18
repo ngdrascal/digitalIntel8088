@@ -1,6 +1,8 @@
 package us.rdodd.digital.i8088;
 
 public interface PinsExternalIntf {
+   DataBusDirection getDataBusDirection();
+
    byte getA14();
 
    byte getA13();

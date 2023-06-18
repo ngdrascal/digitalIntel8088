@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 public class Pins implements PinsInternalIntf, PinsExternalIntf {
    private byte[] pinValues;
+   private DataBusDirection busDir = DataBusDirection.HIGHZ;
    // private BlockingQueue<Byte> queue;
    private final Logger pinLogger;
    private final Logger nmiLogger;
@@ -46,7 +47,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public void setAddrBusPins(int value) {
-      pinLogger.trace("{0}.set(0x{1:X5})", "setAddrBusPins", value);
+      pinLogger.trace(String.format("%s.set(0x%05X)", "AddrBusPins", value));
 
       for (int pinNumber : PinMap.AddrPins) {
          byte bitValue = (byte) (value & 0x00000001);
@@ -55,6 +56,18 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
          value >>= 1;
       }
+
+      setDataBusDirection(DataBusDirection.OUTPUT);
+   }
+
+   @Override
+   public DataBusDirection getDataBusDirection() {
+      return busDir;
+   }
+
+   @Override
+   public void setDataBusDirection(DataBusDirection busDir) {
+      this.busDir = busDir;
    }
 
    @Override
@@ -65,14 +78,14 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
          data |= (byte) pv;
       }
 
-      pinLogger.trace("{0}.get(): 0x{1:X2}", "getDataBusPins", data);
+      // pinLogger.trace(String.format("%s.get(): 0x%02x", "DataBusPins", data));
 
       return data;
    }
 
    @Override
    public void setDataBusPins(byte value) {
-      pinLogger.trace("{0}.set(0x{1X2})", "setDataBusPins", value);
+      // pinLogger.trace(String.format("%s.set(0x%02x)", "DataBusPins", value));
 
       for (int i = 0; i < PinMap.DataPins.length; i++) {
          byte pv = (byte) (value & 0b00000001);
@@ -80,13 +93,15 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
          value >>= 1;
       }
+
+      setDataBusDirection(DataBusDirection.OUTPUT);
    }
 
    @Override
    public void setBusStatusPins(BusStatus value)
 
    {
-      pinLogger.trace("{0}.set({1})", "setBusStatusPins", value);
+      // pinLogger.trace(String.format("%s.set(%d)", "BusStatusPins", value));
 
       writePin(PinMap.S0, (byte) ((value.ordinal() & 0x01) >> 0));
       writePin(PinMap.S1, (byte) ((value.ordinal() & 0x02) >> 1));
@@ -96,7 +111,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    @Override
    public void setSegRegPins(byte value) {
 
-      pinLogger.trace("{0}.set({1})", "setSegmentRegister", value);
+      // pinLogger.trace(String.format("%s.set(%d)", "SegReg", value));
 
       writePin(PinMap.A16, (byte) ((value & 0x01) >> 0));
       writePin(PinMap.A17, (byte) ((value & 0x02) >> 1));
@@ -106,7 +121,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    public byte getINTR() {
       byte result = readPin(PinMap.INTR);
 
-      pinLogger.trace("{0}.get(): {1}", "getIntrPin", result);
+      // pinLogger.trace(String.format("%s.get(): %d", "INTR", result));
 
       return result;
    }
@@ -115,14 +130,14 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    public byte getNMI() {
       byte result = readPin(PinMap.NMI);
 
-      nmiLogger.trace("{0}.get(): {1}", "getNmiPin", result);
+      // nmiLogger.trace(String.format("%s.get(): %d", "NMI", result));
 
       return result;
    }
 
    @Override
-   public void setLockPin(byte value) {
-      pinLogger.trace("{0}.set({1})", "LockPin", value);
+   public void setLOCK(byte value) {
+      // pinLogger.trace(String.format("%s.set(%d)", "LOCK", value));
 
       writePin(PinMap.LOCK, value);
    }
@@ -137,7 +152,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    }
 
    @Override
-   public byte getClkPin() {
+   public byte getCLK() {
       return readPin(PinMap.CLK);
 
       // byte result = 0;
@@ -150,28 +165,33 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    }
 
    @Override
-   public byte getResetPin() {
+   public byte getRESET() {
       byte result = readPin(PinMap.RESET);
 
-      pinLogger.trace("{0}.get(): {1}", "ResetPin", result);
+      // pinLogger.trace(String.format("%s.get(): $d", "RESET", result));
 
       return result;
    }
 
    @Override
-   public byte getReadyPin() {
+   public byte getREADY() {
       byte result = readPin(PinMap.READY);
 
-      pinLogger.trace("{0}.get(): {1}", "ReadyPin", result);
+      // pinLogger.trace(String.format("%s.get(): $d", "READY", result));
 
       return result;
    }
 
    @Override
-   public void setRdPin(byte value) {
-      pinLogger.trace("{0}.set({1})", "setRdPin", value);
+   public void setRD(byte value) {
+      // pinLogger.trace(String.format("%s.set(%d)", "RD", value));
 
       writePin(PinMap.RD, value);
+
+      if (value == 0)
+         setDataBusDirection(DataBusDirection.INPUT);
+      else
+         setDataBusDirection(DataBusDirection.OUTPUT);
    }
 
    @Override
@@ -391,7 +411,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    }
 
    @Override
-   public void setSS0Pin(byte value){
+   public void setSS0(byte value) {
       writePin(PinMap.SS0, value);
    }
 

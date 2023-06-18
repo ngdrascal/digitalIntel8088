@@ -202,6 +202,7 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
       clkLogger.trace("----T1----");
 
       pins.setAddrBusPins(address);
+      pins.setDataBusDirection(DataBusDirection.OUTPUT);
 
       // T2 - If a read cycle, disable the AD[7:0] buffer
       // If a write cycle, drive data onto the AD[7:0] pins
@@ -212,14 +213,14 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
       // More likely to get POST error 101 with this code
       if (assertLock) {
-         pins.setLockPin(LOW);
+         pins.setLOCK(LOW);
          assertLock = false;
       } else {
-         pins.setLockPin(HIGH);
+         pins.setLOCK(HIGH);
       }
 
       if (busStatus.IsReadOperation()) {
-         pins.setRdPin(LOW);
+         pins.setRD(LOW);
       } else {
          pins.setDataBusPins(writeData);
       }
@@ -231,7 +232,7 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
       do {
          clock.waitForFallingEdge();
          clkLogger.trace("----T3----");
-      } while (pins.getReadyPin() == LOW);
+      } while (pins.getREADY() == LOW);
 
       pins.setBusStatusPins(BusStatus.Pass);
 
@@ -242,7 +243,7 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
       byte result = busStatus.IsReadOperation() ? pins.getDataBusPins() : (byte) 0xEE;
 
-      pins.setRdPin(HIGH);
+      pins.setRD(HIGH);
 
       return result;
    }
@@ -285,7 +286,7 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
       String dataStr = status == BusStatus.MemWr || status == BusStatus.IoWr ? String.format("X2", data) : "--";
 
-      busLogger.trace("{0} {1} {2} {3:X5}:{4}", statusStr, area, segRegStr, addr, dataStr);
+      busLogger.trace(String.format("%s %s %s %05X:%s", statusStr, area, segRegStr, addr, dataStr));
    }
 
    @Override

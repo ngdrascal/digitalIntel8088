@@ -3,6 +3,8 @@ package us.rdodd.digital.i8088;
 public interface PinsInternalIntf {
    void setAddrBusPins(int value);
 
+   void setDataBusDirection(DataBusDirection busDir);
+
    byte getDataBusPins();
 
    void setDataBusPins(byte value);
@@ -15,17 +17,17 @@ public interface PinsInternalIntf {
 
    byte getNMI();
 
-   void setLockPin(byte value);
+   void setLOCK(byte value);
 
    void setQueueStatusPins(byte value);
 
-   byte getClkPin();
+   byte getCLK();
 
-   byte getResetPin();
+   byte getRESET();
 
-   byte getReadyPin();
+   byte getREADY();
 
-   void setRdPin(byte value);
+   void setRD(byte value);
 
-   void setSS0Pin(byte value);
+   void setSS0(byte value);
 }

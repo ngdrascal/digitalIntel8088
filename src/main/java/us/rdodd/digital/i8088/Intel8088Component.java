@@ -12,26 +12,21 @@ public class Intel8088Component extends Node implements Element {
    /**
     * The description of the new component
     */
-   public static final ElementTypeDescription DESCRIPTION = new ElementTypeDescription(
-         "Intel-8088",
-         Intel8088Component.class,
-         new PinInfo("NMI", "Non-maskable Interrupt", Direction.input).setPinNumber("17"),
-         new PinInfo("NTR", "Maskable Interrupt", Direction.input).setPinNumber("18"),
-         new PinInfo("CLK", "Clock", Direction.input).setPinNumber("19"),
-         new PinInfo("RESET", "Reset", Direction.input).setPinNumber("21"),
-         new PinInfo("READY", "Ready", Direction.input).setPinNumber("22"),
-         new PinInfo("~TEST", "Test", Direction.input).setPinNumber("23"),
-         new PinInfo("MN/~MX", "Min/Max mode", Direction.input).setPinNumber("33")) {
-      @Override
-      public String getDescription(ElementAttributes elementAttributes) {
-         return "A cycle accurate Intel 8088 processor.";
-      }
-   }
-         .addAttribute(Keys.ROTATE)
-         .addAttribute(Keys.LABEL)
-         .addAttribute(Keys.DIP_DEFAULT)
-         .addAttribute(Keys.WIDTH)
-         .addAttribute(Keys.HEIGHT);
+   public static final ElementTypeDescription DESCRIPTION =
+         new ElementTypeDescription("Intel-8088", Intel8088Component.class,
+               new PinInfo("NMI", "Non-maskable Interrupt", Direction.input).setPinNumber("17"),
+               new PinInfo("NTR", "Maskable Interrupt", Direction.input).setPinNumber("18"),
+               new PinInfo("CLK", "Clock", Direction.input).setPinNumber("19"),
+               new PinInfo("RESET", "Reset", Direction.input).setPinNumber("21"),
+               new PinInfo("READY", "Ready", Direction.input).setPinNumber("22"),
+               new PinInfo("~TEST", "Test", Direction.input).setPinNumber("23"),
+               new PinInfo("MN/~MX", "Min/Max mode", Direction.input).setPinNumber("33")) {
+            @Override
+            public String getDescription(ElementAttributes elementAttributes) {
+               return "A cycle accurate Intel 8088 processor.";
+            }
+         }.addAttribute(Keys.ROTATE).addAttribute(Keys.LABEL).addAttribute(Keys.DIP_DEFAULT)
+               .addAttribute(Keys.WIDTH).addAttribute(Keys.HEIGHT);
 
    // Input pins
    private ObservableValue pinNmi;
@@ -77,9 +72,6 @@ public class Intel8088Component extends Node implements Element {
 
    private PinsExternalIntf devicePins;
 
-   private long clkLastValue = 0;
-
-   private boolean dataBusIsOutput = false;
    private static Intel8088Core intel8088;
    private static Thread i8088Thread;
    private static int threadCount = 0;
@@ -108,14 +100,22 @@ public class Intel8088Component extends Node implements Element {
       pinA10 = new ObservableValue("A10", 1).setDescription("Address bit 10").setPinNumber("6");
       pinA9 = new ObservableValue("A9", 1).setDescription("Address bit 9").setPinNumber("7");
       pinA8 = new ObservableValue("A8", 1).setDescription("Address bit 8").setPinNumber("8");
-      pinAD7 = new ObservableValue("AD7", 1).setDescription("Address/Data bit 7").setPinNumber("9").setBidirectional();
-      pinAD6 = new ObservableValue("AD6", 1).setDescription("Address/Data bit 6").setPinNumber("10").setBidirectional();
-      pinAD5 = new ObservableValue("AD5", 1).setDescription("Address/Data bit 5").setPinNumber("11").setBidirectional();
-      pinAD4 = new ObservableValue("AD4", 1).setDescription("Address/Data bit 4").setPinNumber("12").setBidirectional();
-      pinAD3 = new ObservableValue("AD3", 1).setDescription("Address/Data bit 3").setPinNumber("13").setBidirectional();
-      pinAD2 = new ObservableValue("AD2", 1).setDescription("Address/Data bit 2").setPinNumber("14").setBidirectional();
-      pinAD1 = new ObservableValue("AD1", 1).setDescription("Address/Data bit 1").setPinNumber("15").setBidirectional();
-      pinAD0 = new ObservableValue("AD0", 1).setDescription("Address/Data bit 0").setPinNumber("16").setBidirectional();
+      pinAD7 = new ObservableValue("AD7", 1).setDescription("Address/Data bit 7").setPinNumber("9")
+            .setBidirectional();
+      pinAD6 = new ObservableValue("AD6", 1).setDescription("Address/Data bit 6").setPinNumber("10")
+            .setBidirectional();
+      pinAD5 = new ObservableValue("AD5", 1).setDescription("Address/Data bit 5").setPinNumber("11")
+            .setBidirectional();
+      pinAD4 = new ObservableValue("AD4", 1).setDescription("Address/Data bit 4").setPinNumber("12")
+            .setBidirectional();
+      pinAD3 = new ObservableValue("AD3", 1).setDescription("Address/Data bit 3").setPinNumber("13")
+            .setBidirectional();
+      pinAD2 = new ObservableValue("AD2", 1).setDescription("Address/Data bit 2").setPinNumber("14")
+            .setBidirectional();
+      pinAD1 = new ObservableValue("AD1", 1).setDescription("Address/Data bit 1").setPinNumber("15")
+            .setBidirectional();
+      pinAD0 = new ObservableValue("AD0", 1).setDescription("Address/Data bit 0").setPinNumber("16")
+            .setBidirectional();
 
       pinQs1 = new ObservableValue("QS1", 1).setDescription("Queue Status 1").setPinNumber("24");
       pinQs0 = new ObservableValue("QS0", 1).setDescription("Queue Status 0").setPinNumber("25");
@@ -123,8 +123,10 @@ public class Intel8088Component extends Node implements Element {
       pinS1 = new ObservableValue("S1", 1).setDescription("Pin S1").setPinNumber("27");
       pinS2 = new ObservableValue("S2", 1).setDescription("Pin S2").setPinNumber("28");
       pinLock = new ObservableValue("~Lock", 1).setDescription("Lock").setPinNumber("29");
-      pinRqGt1 = new ObservableValue("~RQ/~GT1", 1).setDescription("Rqst/Grnt 1").setPinNumber("30").setBidirectional();
-      pinRqGt0 = new ObservableValue("~RQ/~GT0", 1).setDescription("Rqst/Grnt 0").setPinNumber("31").setBidirectional();
+      pinRqGt1 = new ObservableValue("~RQ/~GT1", 1).setDescription("Rqst/Grnt 1").setPinNumber("30")
+            .setBidirectional();
+      pinRqGt0 = new ObservableValue("~RQ/~GT0", 1).setDescription("Rqst/Grnt 0").setPinNumber("31")
+            .setBidirectional();
       pinRd = new ObservableValue("~RD", 1).setDescription("Read").setPinNumber("32");
       pinSs0 = new ObservableValue("~SS0", 1).setDescription("Status 0").setPinNumber("34");
 
@@ -166,6 +168,7 @@ public class Intel8088Component extends Node implements Element {
    public void readInputs() {
       devicePins.setNMI((byte) pinNmi.getValue());
       devicePins.setINTR((byte) pinIntr.getValue());
+      devicePins.setCLK((byte) pinClk.getValue());
       devicePins.setRESET((byte) pinReset.getValue());
       devicePins.setREADY((byte) pinReady.getValue());
       devicePins.setTEST((byte) pinTest.getValue());
@@ -179,15 +182,6 @@ public class Intel8088Component extends Node implements Element {
          devicePins.setAD2((byte) pinAD2.getValue());
          devicePins.setAD1((byte) pinAD1.getValue());
          devicePins.setAD0((byte) pinAD0.getValue());
-      }
-
-      // set the clock last because it advances the simulation
-      byte clkCurValue = (byte) pinClk.getValue();
-      if (clkCurValue != clkLastValue) {
-         devicePins.setCLK(clkCurValue);
-         clkLastValue = clkCurValue;
-
-         // intel8088.step();
       }
    }
 
@@ -210,7 +204,7 @@ public class Intel8088Component extends Node implements Element {
       pinA9.setValue(devicePins.getA9());
       pinA8.setValue(devicePins.getA8());
 
-      if (dataBusIsOutput) {
+      if (devicePins.getDataBusDirection() == DataBusDirection.OUTPUT) {
          pinAD7.setValue(devicePins.getAD7());
          pinAD6.setValue(devicePins.getAD6());
          pinAD5.setValue(devicePins.getAD5());
@@ -219,7 +213,7 @@ public class Intel8088Component extends Node implements Element {
          pinAD2.setValue(devicePins.getAD2());
          pinAD1.setValue(devicePins.getAD1());
          pinAD0.setValue(devicePins.getAD0());
-      } else {
+      } else /*if (devicePins.getDataBusDirection() == DataBusDirection.HIGHZ)*/ {
          pinAD7.setToHighZ();
          pinAD6.setToHighZ();
          pinAD5.setToHighZ();
@@ -274,9 +268,9 @@ public class Intel8088Component extends Node implements Element {
     */
    @Override
    public ObservableValues getOutputs() {
-      return new ObservableValues(
-            pinA19, pinA18, pinA17, pinA16, pinA15, pinA14, pinA13, pinA12, pinA11, pinA10,
-            pinA9, pinA8, pinAD7, pinAD6, pinAD5, pinAD4, pinAD3, pinAD2, pinAD1, pinAD0,
-            pinQs1, pinQs0, pinS2, pinS1, pinS0, pinLock, pinRqGt1, pinRqGt0, pinRd, pinSs0);
+      return new ObservableValues(pinA19, pinA18, pinA17, pinA16, pinA15, pinA14, pinA13, pinA12,
+            pinA11, pinA10, pinA9, pinA8, pinAD7, pinAD6, pinAD5, pinAD4, pinAD3, pinAD2, pinAD1,
+            pinAD0, pinQs1, pinQs0, pinS2, pinS1, pinS0, pinLock, pinRqGt1, pinRqGt0, pinRd,
+            pinSs0);
    }
 }
