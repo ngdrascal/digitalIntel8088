@@ -11,7 +11,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    private DataBusDirection busDir = DataBusDirection.HIGHZ;
    // private BlockingQueue<Byte> queue;
    private final Logger pinLogger;
-   private final Logger nmiLogger;
+   // private final Logger nmiLogger;
 
    private byte readPin(int pinNumber) {
       if (pinNumber < 1 || pinNumber > pinValues.length)
@@ -41,8 +41,8 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
       // queue = new LinkedBlockingQueue<>(2);
 
-      pinLogger = LoggerFactory.getLogger("cpu.pins");
-      nmiLogger = LoggerFactory.getLogger("cpu.pins.nmi");
+      pinLogger = LoggerFactory.getLogger("i8088.pins");
+      // nmiLogger = LoggerFactory.getLogger("i8088.pins.nmi");
    }
 
    @Override
@@ -78,14 +78,14 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
          data |= (byte) pv;
       }
 
-      // pinLogger.trace(String.format("%s.get(): 0x%02x", "DataBusPins", data));
+      pinLogger.trace(String.format("%s.get(): 0x%02X", "DataBusPins", data));
 
       return data;
    }
 
    @Override
    public void setDataBusPins(byte value) {
-      // pinLogger.trace(String.format("%s.set(0x%02x)", "DataBusPins", value));
+      pinLogger.trace(String.format("%s.set(0x%02X)", "DataBusPins", value));
 
       for (int i = 0; i < PinMap.DataPins.length; i++) {
          byte pv = (byte) (value & 0b00000001);

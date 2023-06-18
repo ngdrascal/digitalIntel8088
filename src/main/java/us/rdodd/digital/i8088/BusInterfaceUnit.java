@@ -21,8 +21,8 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
       this.registers = registers;
       this.pins = pins;
 
-      busLogger = LoggerFactory.getLogger("cpu.bus");
-      clkLogger = LoggerFactory.getLogger("cpu.clock");
+      busLogger = LoggerFactory.getLogger("i8088.bus");
+      clkLogger = LoggerFactory.getLogger("i8088.clock");
       assertLock = false;
    }
 

@@ -2,7 +2,7 @@ package us.rdodd.digital.i8088;
 
 /*
        +------------------------+
-    -- |  GND	  VCC           | --
+    -- |  GND0	  VCC           | --
      2 |  A14	  A15           | 39
      3 |  A13	  A16/S3        | 38
      4 |  A12	  A17/S4        | 37
@@ -21,7 +21,7 @@ package us.rdodd.digital.i8088;
     17 |  NMI	  INTA  (QS1)   | 24
     18 | INTR	  TEST          | 23
     19 |  CLK	  READY         | 22
-    -- |  GND	  RESET         | 21
+    -- |  GND1	  RESET         | 21
        +------------------------+
 */
 

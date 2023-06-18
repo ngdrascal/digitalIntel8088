@@ -93,8 +93,7 @@ public class Intel8088Core implements Runnable {
       this._nmiLatched = nmiLatched;
       this.pins = pins;
 
-      // _logger = LoggerFactory.getLogger("cpu");
-      _instLogger = LoggerFactory.getLogger("cpu.instr");
+      _instLogger = LoggerFactory.getLogger("i8088.instr");
 
       pins.setBusStatusPins(BusStatus.Pass);
    }
