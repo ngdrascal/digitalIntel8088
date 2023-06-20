@@ -128,9 +128,9 @@ public class Intel8088Component extends Node implements Element {
       pinS2 = new ObservableValue("S2", 1).setDescription("Pin S2").setPinNumber("28");
       pinLock = new ObservableValue("~Lock", 1).setDescription("Lock").setPinNumber("29");
       pinRqGt1 = new ObservableValue("~RQ/~GT1", 1).setDescription("Rqst/Grnt 1").setPinNumber("30")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
       pinRqGt0 = new ObservableValue("~RQ/~GT0", 1).setDescription("Rqst/Grnt 0").setPinNumber("31")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
       pinRd = new ObservableValue("~RD", 1).setDescription("Read").setPinNumber("32");
       pinSs0 = new ObservableValue("~SS0", 1).setDescription("Status 0").setPinNumber("34");
 
@@ -265,8 +265,9 @@ public class Intel8088Component extends Node implements Element {
       pinS0.setValue(devicePins.getS0());
 
       pinLock.setValue(devicePins.getLOCK());
-      pinRqGt1.setValue(devicePins.getRQGT1());
-      pinRqGt0.setValue(devicePins.getRQGT0());
+      // TODO: this needs special handling
+      // pinRqGt1.setValue(devicePins.getRQGT1());
+      // pinRqGt0.setValue(devicePins.getRQGT0());
       pinRd.setValue(devicePins.getRD());
       pinSs0.setValue(devicePins.getSS0());
 

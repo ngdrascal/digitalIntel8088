@@ -45,8 +45,8 @@ public class i8088CoreTests extends TestCase {
    private ObservableValue pinS1;
    private ObservableValue pinS2;
    private ObservableValue pinLOCK;
-   // private ObservableValue pinRqGt1;
-   // private ObservableValue pinRqGt0;
+   private ObservableValue pinRQGT1;
+   private ObservableValue pinRQGT0;
    private ObservableValue pinRD;
    private ObservableValue pinSS0;
 
@@ -88,8 +88,8 @@ public class i8088CoreTests extends TestCase {
       pinS1 = i8088Comp.getOutputs().get(23);
       pinS0 = i8088Comp.getOutputs().get(24);
       pinLOCK = i8088Comp.getOutputs().get(25);
-      // pinRqGt1 = i8088Comp.getOutputs().get(26);
-      // pinRqGt0 = i8088Comp.getOutputs().get(27);
+      pinRQGT1 = i8088Comp.getOutputs().get(26);
+      pinRQGT0 = i8088Comp.getOutputs().get(27);
       pinRD = i8088Comp.getOutputs().get(28);
       pinSS0 = i8088Comp.getOutputs().get(29);
 
@@ -148,7 +148,16 @@ public class i8088CoreTests extends TestCase {
       assertEquals("QS0", LOW, pinQS0.getValue());
       assertEquals("QS1", LOW, pinQS1.getValue());
       assertEquals("SS0", HIGH, pinSS0.getValue());
-
+      assertTrue("RQGT0", pinRQGT0.isHighZ());
+      assertTrue("RQGT1", pinRQGT1.isHighZ());
+      assertTrue("AD7", pinAD7.isHighZ());
+      assertTrue("AD6", pinAD6.isHighZ());
+      assertTrue("AD5", pinAD5.isHighZ());
+      assertTrue("AD4", pinAD4.isHighZ());
+      assertTrue("AD3", pinAD3.isHighZ());
+      assertTrue("AD2", pinAD2.isHighZ());
+      assertTrue("AD1", pinAD1.isHighZ());
+      assertTrue("AD0", pinAD0.isHighZ());
    }
 
    private void executeClockCycle(Model model, int count) {
