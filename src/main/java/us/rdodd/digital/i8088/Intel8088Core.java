@@ -5551,11 +5551,87 @@ public class Intel8088Core implements Runnable {
 
       pins.setBusStatusPins(BusStatus.Pass);
       pins.setRD(HIGH);
-      pins.setAddrBusPins(0xFFFF0);
       pins.setLOCK(LOW);
       pins.setQueueStatusPins((byte) 0);
       pins.setSS0(HIGH);
       _instLogger.trace("<-- Reset sequence");
+   }
+
+   private int resetCntDwn;
+
+   private States resetStateMachine(States state) {
+      _instLogger.trace("state: {}", state);
+
+      States nextState = state;
+      switch (state) {
+         case RESET0:
+            _instLogger.trace("--> Reset sequence");
+            nextState = States.RESET1;
+         case RESET1:
+
+            // stay here until the reset pin transitions to LOW
+            if (pins.getRESET() == LOW && clock.isLow()) {
+               _nmiLatched.Clear(); // Debounce NMI
+
+               clock.setClockCounter(10); // Debounce prefixes and cycle counter
+               _lastInstrSetPrefix = false;
+               _pauseInterrupts = false;
+
+               _registers.Flags = 0x0000; // Reset registers
+               _registers.ES = 0;
+               _registers.SS = 0;
+               _registers.DS = 0;
+               _registers.CS = 0xFFFF;
+               _registers.IP = 0;
+
+               _pfqInAddress = 0;
+               prefetch_queue_count = 0;
+
+               resetCntDwn = 7;
+
+               nextState = States.RESET2;
+            }
+            break;
+         case RESET2:
+            if (clock.isLow()) {
+               resetCntDwn--;
+               if (resetCntDwn == 0) {
+                  pins.setBusStatusPins(BusStatus.Pass);
+                  pins.setRD(HIGH);
+                  pins.setLOCK(LOW);
+                  pins.setQueueStatusPins((byte) 0);
+                  pins.setSS0(HIGH);
+                  _instLogger.trace("<-- Reset sequence");
+
+                  nextState = States.NONE;
+               }
+            }
+            break;
+         default:
+            nextState = States.ERROR;
+      }
+      return nextState;
+   }
+
+   private States mainStateMachine(States state) {
+      States nextState = States.NONE;
+
+      switch (state) {
+         case RESET0:
+         case RESET1:
+         case RESET2:
+            nextState = resetStateMachine(state);
+         default:
+            break;
+      }
+
+      return nextState;
+   }
+
+   private States currentState = States.RESET0;
+
+   public void step() {
+      currentState = mainStateMachine(currentState);
    }
 
    // -------------------------------------------------
@@ -5620,7 +5696,7 @@ public class Intel8088Core implements Runnable {
 
    // private States state = States.POWERUP;
 
-   // RESET: Cases the processor to immediately terminate its present activity. The signal
+   // RESET: Causes the processor to immediately terminate its present activity. The signal
    // must transition LOW to HIGH and remain active HIGH for at least four clock cycles. 
    // It restarts execution, as described in the instruction set description, when RESET
    // returns LOW. RESET is internally synchronized

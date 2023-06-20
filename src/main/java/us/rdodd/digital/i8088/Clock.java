@@ -20,6 +20,7 @@ public class Clock implements ClockIntf {
    private long clockCounter;
    private byte lastNmi;
    private byte currentNmi;
+   private byte value;
    private EdgeDirection lastEdgeDir;
    private Queue<Action> actionQueue;
 
@@ -82,6 +83,18 @@ public class Clock implements ClockIntf {
          }
          return actionQueue.size();
       }
+   }
+
+   public boolean isLow(){
+      return value == LOW;
+   }
+
+   public boolean isHigh(){
+      return value == HIGH;
+   }
+
+   public void setValue(byte value){
+      this.value = value;
    }
 
    public long getClockCounter() {

@@ -7,6 +7,12 @@ public interface ClockIntf {
 
    Clock addAction(EdgeDirection dir, OnClockEdgeIntf lambda);
 
+   boolean isLow();
+
+   boolean isHigh();
+
+   void setValue(byte value);
+
    int step(EdgeDirection currentEdge);
 
    long getClockCounter();

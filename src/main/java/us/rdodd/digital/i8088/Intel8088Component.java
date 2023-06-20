@@ -1,5 +1,7 @@
 package us.rdodd.digital.i8088;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import de.neemann.digital.core.Node;
 import de.neemann.digital.core.NodeException;
 import de.neemann.digital.core.ObservableValue;
@@ -27,6 +29,8 @@ public class Intel8088Component extends Node implements Element {
             }
          }.addAttribute(Keys.ROTATE).addAttribute(Keys.LABEL).addAttribute(Keys.DIP_DEFAULT)
                .addAttribute(Keys.WIDTH).addAttribute(Keys.HEIGHT);
+
+   private Logger logger;
 
    // Input pins
    private ObservableValue pinNmi;
@@ -101,21 +105,21 @@ public class Intel8088Component extends Node implements Element {
       pinA9 = new ObservableValue("A9", 1).setDescription("Address bit 9").setPinNumber("7");
       pinA8 = new ObservableValue("A8", 1).setDescription("Address bit 8").setPinNumber("8");
       pinAD7 = new ObservableValue("AD7", 1).setDescription("Address/Data bit 7").setPinNumber("9")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
       pinAD6 = new ObservableValue("AD6", 1).setDescription("Address/Data bit 6").setPinNumber("10")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
       pinAD5 = new ObservableValue("AD5", 1).setDescription("Address/Data bit 5").setPinNumber("11")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
       pinAD4 = new ObservableValue("AD4", 1).setDescription("Address/Data bit 4").setPinNumber("12")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
       pinAD3 = new ObservableValue("AD3", 1).setDescription("Address/Data bit 3").setPinNumber("13")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
       pinAD2 = new ObservableValue("AD2", 1).setDescription("Address/Data bit 2").setPinNumber("14")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
       pinAD1 = new ObservableValue("AD1", 1).setDescription("Address/Data bit 1").setPinNumber("15")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
       pinAD0 = new ObservableValue("AD0", 1).setDescription("Address/Data bit 0").setPinNumber("16")
-            .setBidirectional();
+            .setToHighZ().setBidirectional();
 
       pinQs1 = new ObservableValue("QS1", 1).setDescription("Queue Status 1").setPinNumber("24");
       pinQs0 = new ObservableValue("QS0", 1).setDescription("Queue Status 0").setPinNumber("25");
@@ -135,6 +139,7 @@ public class Intel8088Component extends Node implements Element {
       pinA17 = new ObservableValue("A17", 1).setDescription("Address bit 17").setPinNumber("37");
       pinA16 = new ObservableValue("A16", 1).setDescription("Address bit 16").setPinNumber("38");
       pinA15 = new ObservableValue("A15", 1).setDescription("Address bit 15").setPinNumber("39");
+      
       Pins pins = new Pins();
       devicePins = pins;
 
@@ -156,7 +161,9 @@ public class Intel8088Component extends Node implements Element {
       i8088Thread = new Thread(intel8088, "i8088-" + threadCount);
       threadCount++;
 
-      i8088Thread.start();
+      logger = LoggerFactory.getLogger("i8088.comp");
+
+      // i8088Thread.start();
    }
 
    /**
@@ -173,7 +180,7 @@ public class Intel8088Component extends Node implements Element {
       devicePins.setREADY((byte) pinReady.getValue());
       devicePins.setTEST((byte) pinTest.getValue());
 
-      if (true) {
+      if (devicePins.getDataBusDirection() == DataBusDirection.INPUT) {
          devicePins.setAD7((byte) pinAD7.getValue());
          devicePins.setAD6((byte) pinAD6.getValue());
          devicePins.setAD5((byte) pinAD5.getValue());
@@ -182,7 +189,33 @@ public class Intel8088Component extends Node implements Element {
          devicePins.setAD2((byte) pinAD2.getValue());
          devicePins.setAD1((byte) pinAD1.getValue());
          devicePins.setAD0((byte) pinAD0.getValue());
+
+         byte data = 0;
+         data |= (byte) pinAD7.getValue() << 7;
+         data |= (byte) pinAD6.getValue() << 6;
+         data |= (byte) pinAD5.getValue() << 5;
+         data |= (byte) pinAD4.getValue() << 4;
+         data |= (byte) pinAD3.getValue() << 3;
+         data |= (byte) pinAD2.getValue() << 2;
+         data |= (byte) pinAD1.getValue() << 1;
+         data |= (byte) pinAD0.getValue() << 0;
+
+         byte data2 = 0;
+         data2 |= devicePins.getAD7() <<7;
+         data2 |= devicePins.getAD6() <<6;
+         data2 |= devicePins.getAD5() <<5;
+         data2 |= devicePins.getAD4() <<4;
+         data2 |= devicePins.getAD3() <<3;
+         data2 |= devicePins.getAD2() <<2;
+         data2 |= devicePins.getAD1() <<1;
+         data2 |= devicePins.getAD0() <<0;
+
+         logger.trace(String.format("readInputs().dataBus: 0x%02X  internal:0x%02X" , data, data2));
       }
+      else {
+         logger.trace("readInputs().dataBus: not read, dir={}", devicePins.getDataBusDirection());
+      }
+
    }
 
    /**
@@ -213,7 +246,7 @@ public class Intel8088Component extends Node implements Element {
          pinAD2.setValue(devicePins.getAD2());
          pinAD1.setValue(devicePins.getAD1());
          pinAD0.setValue(devicePins.getAD0());
-      } else /*if (devicePins.getDataBusDirection() == DataBusDirection.HIGHZ)*/ {
+      } else if (devicePins.getDataBusDirection() == DataBusDirection.HIGHZ) {
          pinAD7.setToHighZ();
          pinAD6.setToHighZ();
          pinAD5.setToHighZ();
@@ -223,6 +256,7 @@ public class Intel8088Component extends Node implements Element {
          pinAD1.setToHighZ();
          pinAD0.setToHighZ();
       }
+
       pinQs1.setValue(devicePins.getQS1());
       pinQs0.setValue(devicePins.getQS0());
 
@@ -235,6 +269,8 @@ public class Intel8088Component extends Node implements Element {
       pinRqGt0.setValue(devicePins.getRQGT0());
       pinRd.setValue(devicePins.getRD());
       pinSs0.setValue(devicePins.getSS0());
+
+      intel8088.step();
    }
 
    /**

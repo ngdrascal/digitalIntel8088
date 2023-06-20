@@ -11,6 +11,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
    private DataBusDirection busDir = DataBusDirection.HIGHZ;
    // private BlockingQueue<Byte> queue;
    private final Logger pinLogger;
+   private final Logger dataBusLogger;
    // private final Logger nmiLogger;
 
    private byte readPin(int pinNumber) {
@@ -43,6 +44,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
       pinLogger = LoggerFactory.getLogger("i8088.pins");
       // nmiLogger = LoggerFactory.getLogger("i8088.pins.nmi");
+      dataBusLogger = LoggerFactory.getLogger("i8088.pins.databus");
    }
 
    @Override
@@ -56,8 +58,6 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
          value >>= 1;
       }
-
-      setDataBusDirection(DataBusDirection.OUTPUT);
    }
 
    @Override
@@ -67,6 +67,7 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public void setDataBusDirection(DataBusDirection busDir) {
+      pinLogger.trace("setDataBusDirection({})", busDir);
       this.busDir = busDir;
    }
 
@@ -93,8 +94,6 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
          value >>= 1;
       }
-
-      setDataBusDirection(DataBusDirection.OUTPUT);
    }
 
    @Override
@@ -110,7 +109,6 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public void setSegRegPins(byte value) {
-
       // pinLogger.trace(String.format("%s.set(%d)", "SegReg", value));
 
       writePin(PinMap.A16, (byte) ((value & 0x01) >> 0));
@@ -184,14 +182,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public void setRD(byte value) {
-      // pinLogger.trace(String.format("%s.set(%d)", "RD", value));
+      pinLogger.trace(String.format("%s.set(%d)", "RD", value));
 
       writePin(PinMap.RD, value);
-
-      if (value == 0)
-         setDataBusDirection(DataBusDirection.INPUT);
-      else
-         setDataBusDirection(DataBusDirection.OUTPUT);
    }
 
    @Override
@@ -231,7 +224,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getAD7() {
-      return readPin(PinMap.AD7);
+      byte value = readPin(PinMap.AD7);
+      dataBusLogger.trace(String.format("Pins.get%s(): 0x%02X", "AD7", value));
+      return value;
    }
 
    @Override
@@ -241,7 +236,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getAD6() {
-      return readPin(PinMap.AD6);
+      byte value = readPin(PinMap.AD6);
+      dataBusLogger.trace(String.format("Pins.get%s(): 0x%02X", "AD6", value));
+      return value;
    }
 
    @Override
@@ -251,7 +248,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getAD5() {
-      return readPin(PinMap.AD5);
+      byte value = readPin(PinMap.AD5);
+      dataBusLogger.trace(String.format("Pins.get%s(): 0x%02X", "AD5", value));
+      return value;
    }
 
    @Override
@@ -261,7 +260,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getAD4() {
-      return readPin(PinMap.AD4);
+      byte value = readPin(PinMap.AD4);
+      dataBusLogger.trace(String.format("Pins.get%s(): 0x%02X", "AD4", value));
+      return value;
    }
 
    @Override
@@ -271,7 +272,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getAD3() {
-      return readPin(PinMap.AD3);
+      byte value = readPin(PinMap.AD3);
+      dataBusLogger.trace(String.format("Pins.get%s(): 0x%02X", "AD3", value));
+      return value;
    }
 
    @Override
@@ -281,7 +284,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getAD2() {
-      return readPin(PinMap.AD2);
+      byte value = readPin(PinMap.AD2);
+      dataBusLogger.trace(String.format("Pins.get%s(): 0x%02X", "AD2", value));
+      return value;
    }
 
    @Override
@@ -291,7 +296,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getAD1() {
-      return readPin(PinMap.AD1);
+      byte value = readPin(PinMap.AD1);
+      dataBusLogger.trace(String.format("Pins.get%s(): 0x%02X", "AD1", value));
+      return value;
    }
 
    @Override
@@ -301,7 +308,9 @@ public class Pins implements PinsInternalIntf, PinsExternalIntf {
 
    @Override
    public byte getAD0() {
-      return readPin(PinMap.AD0);
+      byte value = readPin(PinMap.AD0);
+      dataBusLogger.trace(String.format("Pins.get%s(): 0x%02X", "AD0", value));
+      return value;
    }
 
    @Override

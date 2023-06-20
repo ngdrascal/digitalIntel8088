@@ -55,7 +55,8 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
    }
 
    @Override
-   public void writeMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, byte data) {
+   public void writeMemoryByte(boolean useSegmentOverride, SegmentRegs segmentReg, int offset,
+         byte data) {
       int address = calculateAddress(useSegmentOverride, segmentReg, offset);
       printBusRequest(address, data, BusStatus.MemWr, segmentReg);
 
@@ -63,7 +64,8 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
    }
 
    @Override
-   public void writeMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset, int data) {
+   public void writeMemoryWord(boolean useSegmentOverride, SegmentRegs segmentReg, int offset,
+         int data) {
       byte dataLo = (byte) (data & 0x00FF);
       writeMemoryByte(useSegmentOverride, segmentReg, offset, dataLo);
 
@@ -155,8 +157,7 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
                break;
             case None:
                break;
-         }
-         ;
+         };
       } else {
          switch (segmentReg) {
             case None:
@@ -201,8 +202,8 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
       clock.waitForFallingEdge();
       clkLogger.trace("----T1----");
 
-      pins.setAddrBusPins(address);
       pins.setDataBusDirection(DataBusDirection.OUTPUT);
+      pins.setAddrBusPins(address);
 
       // T2 - If a read cycle, disable the AD[7:0] buffer
       // If a write cycle, drive data onto the AD[7:0] pins
@@ -220,8 +221,10 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
       }
 
       if (busStatus.IsReadOperation()) {
+         pins.setDataBusDirection(DataBusDirection.INPUT);
          pins.setRD(LOW);
       } else {
+         pins.setDataBusDirection(DataBusDirection.OUTPUT);
          pins.setDataBusPins(writeData);
       }
 
@@ -243,6 +246,7 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
       byte result = busStatus.IsReadOperation() ? pins.getDataBusPins() : (byte) 0xEE;
 
+      pins.setDataBusDirection(DataBusDirection.HIGHZ);
       pins.setRD(HIGH);
 
       return result;
@@ -284,7 +288,9 @@ public class BusInterfaceUnit implements BusInterfaceUnitIntf {
 
       String segRegStr = segReg == SegmentRegs.None ? "--" : segReg.toString();
 
-      String dataStr = status == BusStatus.MemWr || status == BusStatus.IoWr ? String.format("X2", data) : "--";
+      String dataStr =
+            status == BusStatus.MemWr || status == BusStatus.IoWr ? String.format("X2", data)
+                  : "--";
 
       busLogger.trace(String.format("%s %s %s %05X:%s", statusStr, area, segRegStr, addr, dataStr));
    }
