@@ -271,7 +271,12 @@ public class Intel8088Component extends Node implements Element {
       pinRd.setValue(devicePins.getRD());
       pinSs0.setValue(devicePins.getSS0());
 
-      intel8088.step();
+      try {
+         intel8088.step();
+      } catch (Exception e) {
+         // TODO Auto-generated catch block
+         e.printStackTrace();
+      }
    }
 
    /**

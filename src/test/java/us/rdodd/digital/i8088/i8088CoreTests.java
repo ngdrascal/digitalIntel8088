@@ -125,21 +125,43 @@ public class i8088CoreTests extends TestCase {
       }
    }
 
+   /////////////////////////////////////////////////////////////////////////////
+   // SCENARIO-01: RESET pin asserted
+   /////////////////////////////////////////////////////////////////////////////
+
+   // GIVEN: the RESET pin is asserted
+   // WHEN: the RESET pin is asserted four or more cycles
+   // THEN: S0 is HIGH
+   // THEN: S1 is HIGH
+   // THEN: S2 is HIGH
+   // THEN: RD is HIGH
+   // THEN: LOCK is LOW,
+   // THEN: QS0 is LOW,
+   // THEN: QS1 is LOW,
+   // THEN: SS0 is HIGH
+   // THEN: RQGT0 is Z
+   // THEN: RQGT1 is Z
+   // THEN: AD7 is Z
+   // THEN: AD6 is Z
+   // THEN: AD5 is Z
+   // THEN: AD4 is Z
+   // THEN: AD3 is Z
+   // THEN: AD2 is Z
+   // THEN: AD1 is Z
+   // THEN: AD0 is Z
    @Test
-   public void testReset() throws NodeException {
-      // Arrange:
+   public void testScenario01Test01() throws NodeException {
+      // ARRANGE:
       Model model = initModel();
 
-      // Act:
+      // ACT:
       pinRESET.setValue(HIGH); // Active HIGH
-
       executeClockCycle(model, 4);
 
       pinRESET.setValue(LOW);
-
       executeClockCycle(model, 7);
 
-      // Assert:
+      // ASSERT:
       assertEquals("S0", HIGH, pinS0.getValue());
       assertEquals("S1", HIGH, pinS1.getValue());
       assertEquals("S2", HIGH, pinS2.getValue());
@@ -158,6 +180,30 @@ public class i8088CoreTests extends TestCase {
       assertTrue("AD2", pinAD2.isHighZ());
       assertTrue("AD1", pinAD1.isHighZ());
       assertTrue("AD0", pinAD0.isHighZ());
+   }
+
+   // GIVEN: the RESET pin is asserted
+   // WHEN: the RESET pin is asserted four or more cycle
+   // THEN: S0 is HIGH
+   @Test
+   public void testScenario01Test02() throws NodeException {
+      // ARRANGE:
+      Model model = initModel();
+      performReset(model);
+
+      // ACT:
+      executeClockCycle(model, 4);
+
+      // ASSERT:
+   }
+
+
+   private void performReset(Model model) {
+      pinRESET.setValue(HIGH); // Active HIGH
+      executeClockCycle(model, 4);
+
+      pinRESET.setValue(LOW);
+      executeClockCycle(model, 7);
    }
 
    private void executeClockCycle(Model model, int count) {

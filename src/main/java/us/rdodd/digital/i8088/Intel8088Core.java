@@ -1,5 +1,6 @@
 package us.rdodd.digital.i8088;
 
+import java.util.Stack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,6 +84,8 @@ public class Intel8088Core implements Runnable {
    private BusInterfaceUnitIntf _biu;
    private BitLatchIntf _nmiLatched;
    private PinsInternalIntf pins;
+   private Stack<SimStates> stateStack;
+
    private Logger _instLogger;
 
    public Intel8088Core(ClockIntf clock, Registers registers, BusInterfaceUnitIntf biu,
@@ -93,9 +96,14 @@ public class Intel8088Core implements Runnable {
       this._nmiLatched = nmiLatched;
       this.pins = pins;
 
-      _instLogger = LoggerFactory.getLogger("i8088.instr");
+      this.clock.setClockCounter(0);
 
-      pins.setBusStatusPins(BusStatus.Pass);
+      stateStack = new Stack<SimStates>();
+      stateStack.push(SimStates.ERROR);
+      stateStack.push(SimStates.FETCH0);
+      stateStack.push(SimStates.POWERUP);
+
+      _instLogger = LoggerFactory.getLogger("i8088.instr");
    }
 
    // #define flag_o ( (_registers.Flags & 0x0800)==0 ? 0 : 1 )
@@ -5557,81 +5565,190 @@ public class Intel8088Core implements Runnable {
       _instLogger.trace("<-- Reset sequence");
    }
 
+   private SimStates powerStateMachine(SimStates state) {
+      switch (state) {
+         case POWERUP:
+            if (pins.getRESET() == HIGH)
+               return SimStates.RESET0;
+
+            return SimStates.POWERUP;
+
+         default:
+            return SimStates.ERROR;
+      }
+   }
+
    private int resetCntDwn;
 
-   private States resetStateMachine(States state) {
-      _instLogger.trace("state: {}", state);
-
-      States nextState = state;
+   private SimStates resetStateMachine(SimStates state) {
       switch (state) {
          case RESET0:
             _instLogger.trace("--> Reset sequence");
-            nextState = States.RESET1;
+
+            // RESET must be held high for at least 4 clock cycles
+            resetCntDwn = 4;
+
+            _instLogger.trace("Fall to state: RESET1, clock: {}", clock.isLow() ? 0 : 1);
+
          case RESET1:
+            // wait until clock is LOW
+            if (clock.isHigh())
+               return SimStates.RESET1;
 
-            // stay here until the reset pin transitions to LOW
-            if (pins.getRESET() == LOW && clock.isLow()) {
-               _nmiLatched.Clear(); // Debounce NMI
+            resetCntDwn--;
+            if (resetCntDwn > 0) {
+               if (pins.getRESET() == LOW)
+                  return SimStates.FETCH0;
 
-               clock.setClockCounter(10); // Debounce prefixes and cycle counter
-               _lastInstrSetPrefix = false;
-               _pauseInterrupts = false;
-
-               _registers.Flags = 0x0000; // Reset registers
-               _registers.ES = 0;
-               _registers.SS = 0;
-               _registers.DS = 0;
-               _registers.CS = 0xFFFF;
-               _registers.IP = 0;
-
-               _pfqInAddress = 0;
-               prefetch_queue_count = 0;
-
-               resetCntDwn = 7;
-
-               nextState = States.RESET2;
+               return SimStates.RESET1;
             }
-            break;
+
+            _instLogger.trace("Fall to state: RESET2, clock: {}", clock.isLow() ? 0 : 1);
+
          case RESET2:
-            if (clock.isLow()) {
-               resetCntDwn--;
-               if (resetCntDwn == 0) {
-                  pins.setBusStatusPins(BusStatus.Pass);
-                  pins.setRD(HIGH);
-                  pins.setLOCK(LOW);
-                  pins.setQueueStatusPins((byte) 0);
-                  pins.setSS0(HIGH);
-                  _instLogger.trace("<-- Reset sequence");
+            // wait until clock is LOW
+            if (clock.isHigh())
+               return SimStates.RESET2;
 
-                  nextState = States.NONE;
-               }
+            // wait until RESET transitions to LOW
+            if (pins.getRESET() == HIGH)
+               return SimStates.RESET2;
+
+            _nmiLatched.Clear(); // Debounce NMI
+
+            // clock.setClockCounter(10); // Debounce prefixes and cycle counter
+            _lastInstrSetPrefix = false;
+            _pauseInterrupts = false;
+
+            _registers.Flags = 0x0000; // Reset registers
+            _registers.ES = 0;
+            _registers.SS = 0;
+            _registers.DS = 0;
+            _registers.CS = 0xFFFF;
+            _registers.IP = 0;
+
+            _pfqInAddress = 0;
+            prefetch_queue_count = 0;
+
+            resetCntDwn = 7;
+
+            // return SimStates.RESET3;
+            _instLogger.trace("Fall to state: RESET3, clock: {}", clock.isLow() ? 0 : 1);
+
+         case RESET3:
+            if (clock.isHigh())
+               // wait until clock is low
+               return SimStates.RESET3;
+
+            resetCntDwn--;
+            if (resetCntDwn == 0) {
+               pins.setBusStatusPins(BusStatus.Pass);
+               pins.setRD(HIGH);
+               pins.setLOCK(LOW);
+               pins.setQueueStatusPins((byte) 0);
+               pins.setSS0(HIGH);
+               _instLogger.trace("<-- Reset sequence");
+
+               return SimStates.RESET4;
             }
-            break;
+            return SimStates.RESET3;
+
+         case RESET4:
+            if (clock.isLow())
+               return SimStates.RESET4;
+
+            return SimStates.FETCH0;
+
          default:
-            nextState = States.ERROR;
+            return SimStates.ERROR;
       }
-      return nextState;
    }
 
-   private States mainStateMachine(States state) {
-      States nextState = States.NONE;
-
+   private SimStates fetchStateMachine(SimStates state) throws Exception {
       switch (state) {
+         case FETCH0:
+            if (pins.getRESET() == HIGH) {
+               return resetStateMachine(SimStates.FETCH0);
+            }
+
+            _instLogger.trace("Fall to state: FETCH1, clock: {}", clock.isLow() ? 0 : 1);
+
+         case FETCH1:
+            // Wait for cycle counter to expire before processing traps or next instruction
+            if (clock.getClockCounter() != 0) {
+               return SimStates.FETCH1;
+            }
+            _instLogger.trace("Fall to state: FETCH2, clock: {}", clock.isLow() ? 0 : 1);
+
+         case FETCH2:
+            // Don't poll for interrupts between a Prefixes and instructions
+            if (clock.getClockCounter() == 0 && !_pauseInterrupts) {
+               if (_nmiLatched.IsSet()) {
+                  NmiHandler();
+               } else if (pins.getINTR() == HIGH && Flag_i() != 0) {
+                  IntrHandler();
+               } else if (Flag_t() != 0) {
+                  TrapHandler();
+               }
+            }
+
+            // Process new instruction when previous instruction's cycle counter has expired
+            // Debounce prefixes after a non-prefix instruction is executed
+            if (clock.getClockCounter() == 0) {
+               _lastInstrSetPrefix = false;
+               _pauseInterrupts = false;
+               ExecuteNewInstr();
+               // clockCounter=0;
+               if (_lastInstrSetPrefix == false)
+                  _biu.setPrefixFlags((byte) 0x00);
+            }
+
+            // Fill prefetch queue between instructions
+            if (prefetch_queue_count < 4) {
+               PfqAddByte();
+            }
+
+            return SimStates.FETCH0;
+
+         default:
+            break;
+      }
+      return SimStates.ERROR;
+   }
+
+   private SimStates stateDispatcher(SimStates state) throws Exception {
+      _instLogger.trace("Move to state: {}, clock: {}", state, clock.isLow() ? 0 : 1);
+      switch (state) {
+         case POWERUP:
+            return powerStateMachine(state);
+
          case RESET0:
          case RESET1:
          case RESET2:
-            nextState = resetStateMachine(state);
-         default:
-            break;
-      }
+         case RESET3:
+         case RESET4:
+            return resetStateMachine(state);
 
-      return nextState;
+         case FETCH0:
+         case FETCH1:
+         case FETCH2:
+            return fetchStateMachine(state);
+
+         case ERROR:
+            throw new Exception("Intel8088 internal error");
+
+         default:
+            return SimStates.ERROR;
+      }
    }
 
-   private States currentState = States.RESET0;
+   public void step() throws Exception {
+      clock.setValue(pins.getCLK());
+      SimStates state = stateStack.pop();
 
-   public void step() {
-      currentState = mainStateMachine(currentState);
+      SimStates nextState = stateDispatcher(state);
+      if (nextState != SimStates.UNDEFINED)
+         stateStack.push(nextState);
    }
 
    // -------------------------------------------------
