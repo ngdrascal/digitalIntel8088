@@ -5734,6 +5734,13 @@ public class Intel8088Core implements Runnable {
          case FETCH2:
             return fetchStateMachine(state);
 
+         case BUSCYCLE0:
+         case BUSCYCLE1:
+         case BUSCYCLE2:
+         case BUSCYCLE3:
+         case BUSCYCLE4:
+            return _biu.step(state);
+         
          case ERROR:
             throw new Exception("Intel8088 internal error");
 
@@ -5791,7 +5798,6 @@ public class Intel8088Core implements Runnable {
             _lastInstrSetPrefix = false;
             _pauseInterrupts = false;
             ExecuteNewInstr();
-            // clockCounter=0;
             if (_lastInstrSetPrefix == false)
                _biu.setPrefixFlags((byte) 0x00);
          }
@@ -5802,77 +5808,4 @@ public class Intel8088Core implements Runnable {
          }
       }
    }
-
-   /////////////////////////////////////////////////////////////////////////////
-   // alternative implementation
-   /////////////////////////////////////////////////////////////////////////////
-
-   // private enum States {
-   //    POWERUP, RESET, RUN, HALT
-   // }
-
-   // private States state = States.POWERUP;
-
-   // RESET: Causes the processor to immediately terminate its present activity. The signal
-   // must transition LOW to HIGH and remain active HIGH for at least four clock cycles. 
-   // It restarts execution, as described in the instruction set description, when RESET
-   // returns LOW. RESET is internally synchronized
-   // private byte lstResetPin = 0;
-   // private int resetClkCnt;
-   // private int delayClkCnt;
-
-   // private void step() {
-   //    byte curResetPin = pins.getResetPin();
-   //    if (lstResetPin == LOW && curResetPin == HIGH) {
-   //       resetClkCnt = 1;
-   //    }
-   //    if (lstResetPin == HIGH && curResetPin == HIGH) {
-   //       // the RESET pin must be held high for at least 4 clock cycles
-   //       if (resetClkCnt < 4)
-   //          resetClkCnt++;
-   //    } else if (lstResetPin == HIGH && curResetPin == LOW && resetClkCnt >= 4) {
-   //       // it takes 7 clock cycles to reset the system
-   //       delayClkCnt = 7;
-   //       state = States.RESET;
-   //    }
-   //    lstResetPin = curResetPin;
-
-   //    switch (state) {
-   //       case POWERUP:
-   //          break;
-   //       case RESET:
-   //          if (delayClkCnt > 0)
-   //             delayClkCnt--;
-   //          else {
-   //             pins.setBusStatusPins(BusStatus.Pass);
-
-   //             _nmiLatched.Clear(); // Debounce NMI
-
-   //             _clock.setClockCounter(10); // Debounce prefixes and cycle counter
-   //             _lastInstrSetPrefix = false;
-   //             _pauseInterrupts = false;
-
-   //             // Reset registers
-   //             _registers.Flags = 0x0000;
-   //             _registers.ES = 0;
-   //             _registers.SS = 0;
-   //             _registers.DS = 0;
-   //             _registers.CS = 0xFFFF;
-   //             _registers.IP = 0;
-
-   //             _pfqInAddress = 0;
-   //             prefetch_queue_count = 0;
-
-   //             pins.setAddrBusPins(0xFFFF0);
-   //             state = States.RUN;
-   //          }
-   //          break;
-   //       case RUN:
-   //          break;
-   //       case HALT:
-   //          break;
-   //       default:
-   //          break;
-   //    }
-   // }
 }

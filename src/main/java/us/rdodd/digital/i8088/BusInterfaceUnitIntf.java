@@ -28,4 +28,6 @@ public interface BusInterfaceUnitIntf {
    void setPrefixFlags(byte value);
 
    void orEqPrefixFlags(byte value);
+
+
 }
